@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Site, AuditRun, DeviceStrategy } from '@mantiscan/shared';
 import { ScoreGauge } from './ScoreGauge.js';
+import { apiUrl } from '../lib/api.js';
 import { X, ExternalLink, Smartphone, Monitor, Plus, Loader2 } from 'lucide-react';
 
 interface SiteDetailModalProps {
@@ -20,7 +21,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
     if (!site) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/sites/${site.id}`);
+      const res = await fetch(apiUrl(`/api/sites/${site.id}`));
       if (res.ok) {
         const data = await res.json();
         setRuns(data.runs || []);
@@ -48,7 +49,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
     if (!newWebhookUrl.trim()) return;
 
     try {
-      const res = await fetch(`/api/sites/${site.id}/channels`, {
+      const res = await fetch(apiUrl(`/api/sites/${site.id}/channels`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,7 +69,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
 
   const handleDeleteChannel = async (channelId: string) => {
     try {
-      await fetch(`/api/sites/${site.id}/channels/${channelId}`, {
+      await fetch(apiUrl(`/api/sites/${site.id}/channels/${channelId}`), {
         method: 'DELETE',
       });
       fetchDetails();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Site, CreateSiteInput } from '@mantiscan/shared';
+import { apiUrl } from './lib/api.js';
 import { Navbar } from './components/Navbar.js';
 import { SiteCard } from './components/SiteCard.js';
 import { AddSiteModal } from './components/AddSiteModal.js';
@@ -21,7 +22,7 @@ export const App: React.FC = () => {
 
   const fetchSites = useCallback(async () => {
     try {
-      const res = await fetch('/api/sites');
+      const res = await fetch(apiUrl('/api/sites'));
       if (res.ok) {
         const data = await res.json();
         setSites(data.sites || []);
@@ -52,7 +53,7 @@ export const App: React.FC = () => {
   const handleScan = async (siteId: string) => {
     setScanningSiteId(siteId);
     try {
-      const res = await fetch(`/api/sites/${siteId}/scan`, { method: 'POST' });
+      const res = await fetch(apiUrl(`/api/sites/${siteId}/scan`), { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         showToast(data.message || 'Audit queued on runner', 'info');
@@ -68,7 +69,7 @@ export const App: React.FC = () => {
   };
 
   const handleAddSite = async (input: CreateSiteInput) => {
-    const res = await fetch('/api/sites', {
+    const res = await fetch(apiUrl('/api/sites'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -85,7 +86,7 @@ export const App: React.FC = () => {
 
   const handleDeleteSite = async (siteId: string) => {
     try {
-      const res = await fetch(`/api/sites/${siteId}`, { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/api/sites/${siteId}`), { method: 'DELETE' });
       if (res.ok) {
         showToast('Website removed', 'info');
         fetchSites();
