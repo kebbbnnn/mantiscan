@@ -88,6 +88,8 @@ body {
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--font-sans);
   text-decoration: none;

@@ -46,16 +46,23 @@ export const SiteCard: React.FC<SiteCardProps> = ({
   };
 
   return (
-    <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top row: Site info & Status */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {site.name}
-            </h3>
-            {getStatusBadge()}
-          </div>
+    <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Row 1: Site Title, URL & Status Badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h3
+            style={{
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={site.name}
+          >
+            {site.name}
+          </h3>
           <a
             href={site.url}
             target="_blank"
@@ -67,12 +74,26 @@ export const SiteCard: React.FC<SiteCardProps> = ({
               alignItems: 'center',
               gap: '4px',
               textDecoration: 'none',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {site.url}
             <ExternalLink size={12} />
           </a>
         </div>
+        <div style={{ flexShrink: 0 }}>
+          {getStatusBadge()}
+        </div>
+      </div>
+
+      {/* Row 2: Audit timestamp & Viewport Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {formatTimeAgo(site.lastAuditedAt)}
+        </span>
 
         {/* Viewport switch: Mobile / Desktop */}
         <div
@@ -81,13 +102,14 @@ export const SiteCard: React.FC<SiteCardProps> = ({
             background: 'rgba(255, 255, 255, 0.05)',
             borderRadius: 'var(--radius-sm)',
             padding: '2px',
+            flexShrink: 0,
           }}
         >
           <button
             type="button"
             onClick={() => setStrategy('mobile')}
             style={{
-              padding: '6px 10px',
+              padding: '5px 9px',
               background: strategy === 'mobile' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
               border: 'none',
               borderRadius: '6px',
@@ -106,7 +128,7 @@ export const SiteCard: React.FC<SiteCardProps> = ({
             type="button"
             onClick={() => setStrategy('desktop')}
             style={{
-              padding: '6px 10px',
+              padding: '5px 9px',
               background: strategy === 'desktop' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
               border: 'none',
               borderRadius: '6px',
@@ -129,11 +151,13 @@ export const SiteCard: React.FC<SiteCardProps> = ({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '12px',
-          padding: '16px',
-          background: 'rgba(0, 0, 0, 0.2)',
+          gap: '6px',
+          padding: '14px 8px',
+          background: 'rgba(0, 0, 0, 0.25)',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-subtle)',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <ScoreGauge

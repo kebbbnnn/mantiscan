@@ -10,8 +10,8 @@ interface ScoreGaugeProps {
 export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   score,
   label,
-  size = 72,
-  strokeWidth = 6,
+  size = 62,
+  strokeWidth = 5.5,
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;

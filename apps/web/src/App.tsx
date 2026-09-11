@@ -203,7 +203,7 @@ export const App: React.FC = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 420px), 1fr))',
               gap: '24px',
             }}
           >
