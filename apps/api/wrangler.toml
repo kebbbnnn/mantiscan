@@ -11,7 +11,7 @@ GITHUB_REPO = "mantiscan"
 [[d1_databases]]
 binding = "DB"
 database_name = "mantiscan-db"
-database_id = "mantiscan-local-db"
+database_id = "b06ebccf-e45d-4f88-90ed-74a6471621a3"
 migrations_dir = "migrations"
 
 [triggers]
