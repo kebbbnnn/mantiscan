@@ -27,6 +27,9 @@ export const SiteCard: React.FC<SiteCardProps> = ({
     if (site.lastRunStatus === 'running' || isScanning) {
       return <span className="badge badge-pending animate-pulse">● Auditing...</span>;
     }
+    if (site.lastRunStatus === 'failed') {
+      return <span className="badge badge-degraded">● Audit Failed</span>;
+    }
     if (site.status === 'healthy') {
       return <span className="badge badge-healthy">● Healthy</span>;
     }
@@ -255,6 +258,26 @@ export const SiteCard: React.FC<SiteCardProps> = ({
             <span>Scores breach alert threshold</span>
           </div>
         )}
+
+      {/* Audit failure banner */}
+      {site.lastRunStatus === 'failed' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            fontSize: '0.8125rem',
+            color: '#f87171',
+          }}
+        >
+          <AlertTriangle size={15} />
+          <span>Audit failed: Target site blocked automated audit (HTTP 403 bot block) or was unreachable.</span>
+        </div>
+      )}
 
       {/* Bottom bar: Audit info, Channels, Action buttons */}
       <div
