@@ -3,8 +3,9 @@ import { eq, and, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { sites, auditRuns, alertChannels } from '../db/schema.js';
 import { triggerAuditWorkflow } from '../services/github.js';
+import { calculateNextAuditAt } from '../services/schedule.js';
 import { DEFAULT_THRESHOLDS } from '@mantiscan/shared';
-import type { CreateSiteInput } from '@mantiscan/shared';
+import type { CreateSiteInput, UpdateSiteInput } from '@mantiscan/shared';
 
 type Bindings = {
   DB: D1Database;
@@ -77,6 +78,10 @@ sitesRouter.post('/', async (c) => {
   const now = Math.floor(Date.now() / 1000);
   const siteId = `site_${crypto.randomUUID().slice(0, 8)}`;
 
+  const intervalDays = body.auditIntervalDays ?? 7;
+  const hourUtc = body.auditHourUtc ?? 0;
+  const nextAuditAt = calculateNextAuditAt(intervalDays, hourUtc, new Date());
+
   const newSite = {
     id: siteId,
     name: body.name.trim(),
@@ -86,9 +91,11 @@ sitesRouter.post('/', async (c) => {
     bestPracticesThreshold: body.bestPracticesThreshold ?? DEFAULT_THRESHOLDS.bestPractices,
     seoThreshold: body.seoThreshold ?? DEFAULT_THRESHOLDS.seo,
     status: 'unknown' as const,
-    nextAuditAt: now + 604800, // 7 days from now
+    auditIntervalDays: intervalDays,
+    auditHourUtc: hourUtc,
+    nextAuditAt,
     lastAuditedAt: null,
-    lastRunStatus: null,
+    lastRunStatus: 'running' as const,
     createdAt: now,
   };
 
@@ -124,7 +131,79 @@ sitesRouter.post('/', async (c) => {
       .run();
   }
 
+  // Trigger immediate baseline audit run
+  const appUrl = c.env.APP_URL || new URL(c.req.url).origin;
+  const callbackUrl = `${appUrl}/api/webhooks/audit-result`;
+
+  const triggerPromise = triggerAuditWorkflow({
+    siteId: newSite.id,
+    url: newSite.url,
+    name: newSite.name,
+    callbackUrl,
+    ingestSecret: c.env.INGEST_SECRET || 'mantiscan-dev-secret-token',
+    githubOwner: c.env.GITHUB_OWNER,
+    githubRepo: c.env.GITHUB_REPO,
+    githubToken: c.env.GITHUB_TOKEN,
+  });
+
+  if (c.executionCtx?.waitUntil) {
+    c.executionCtx.waitUntil(triggerPromise);
+  } else {
+    // If running in local node environment without executionCtx
+    triggerPromise.catch((err) => console.error('Baseline audit trigger error:', err));
+  }
+
   return c.json({ site: newSite }, 201);
+});
+
+// PUT /api/sites/:id - Update site settings, thresholds, and schedule
+sitesRouter.put('/:id', async (c) => {
+  const siteId = c.req.param('id');
+  const body = await c.req.json<UpdateSiteInput>();
+  const db = drizzle(c.env.DB);
+
+  const existingSite = await db.select().from(sites).where(eq(sites.id, siteId)).get();
+  if (!existingSite) {
+    return c.json({ error: 'Site not found' }, 404);
+  }
+
+  const updates: Partial<typeof sites.$inferInsert> = {};
+  if (body.name?.trim()) updates.name = body.name.trim();
+  if (body.url?.trim()) {
+    let targetUrl = body.url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = `https://${targetUrl}`;
+    }
+    updates.url = targetUrl;
+  }
+  if (body.perfThreshold !== undefined) updates.perfThreshold = body.perfThreshold;
+  if (body.a11yThreshold !== undefined) updates.a11yThreshold = body.a11yThreshold;
+  if (body.bestPracticesThreshold !== undefined) updates.bestPracticesThreshold = body.bestPracticesThreshold;
+  if (body.seoThreshold !== undefined) updates.seoThreshold = body.seoThreshold;
+
+  const intervalChanged = body.auditIntervalDays !== undefined && body.auditIntervalDays !== existingSite.auditIntervalDays;
+  const hourChanged = body.auditHourUtc !== undefined && body.auditHourUtc !== existingSite.auditHourUtc;
+
+  if (body.auditIntervalDays !== undefined) {
+    updates.auditIntervalDays = body.auditIntervalDays;
+  }
+  if (body.auditHourUtc !== undefined) {
+    updates.auditHourUtc = body.auditHourUtc;
+  }
+
+  // If schedule parameters changed, recompute nextAuditAt
+  if (intervalChanged || hourChanged) {
+    const newInterval = body.auditIntervalDays ?? existingSite.auditIntervalDays;
+    const newHour = body.auditHourUtc ?? existingSite.auditHourUtc;
+    updates.nextAuditAt = calculateNextAuditAt(newInterval, newHour, new Date());
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(sites).set(updates).where(eq(sites.id, siteId)).run();
+  }
+
+  const updatedSite = await db.select().from(sites).where(eq(sites.id, siteId)).get();
+  return c.json({ site: updatedSite });
 });
 
 // GET /api/sites/:id - Get site details and full audit history

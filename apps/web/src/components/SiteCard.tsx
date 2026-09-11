@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { Site, DeviceStrategy } from '@mantiscan/shared';
 import { ScoreGauge } from './ScoreGauge.js';
-import { Play, ExternalLink, Trash2, Smartphone, Monitor, Bell, AlertTriangle } from 'lucide-react';
+import { Play, ExternalLink, Trash2, Smartphone, Monitor, Bell, AlertTriangle, Calendar } from 'lucide-react';
+import { formatScheduleSummary, formatNextRunCountdown } from '../lib/schedule.js';
 
 interface SiteCardProps {
   site: Site;
@@ -93,10 +94,28 @@ export const SiteCard: React.FC<SiteCardProps> = ({
       </div>
 
       {/* Row 2: Audit timestamp & Viewport Switcher */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          {formatTimeAgo(site.lastAuditedAt)}
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {formatTimeAgo(site.lastAuditedAt)}
+          </span>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.75rem',
+              color: 'var(--accent-mantis)',
+              background: 'rgba(52, 211, 153, 0.08)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(52, 211, 153, 0.2)',
+            }}
+            title={`Scheduled to run ${formatScheduleSummary(site.auditIntervalDays ?? 7, site.auditHourUtc ?? 0)}`}
+          >
+            <Calendar size={11} /> {formatScheduleSummary(site.auditIntervalDays ?? 7, site.auditHourUtc ?? 0)} ({formatNextRunCountdown(site.nextAuditAt)})
+          </span>
+        </div>
 
         {/* Viewport switch: Mobile / Desktop */}
         <div

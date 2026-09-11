@@ -242,6 +242,7 @@ export const App: React.FC = () => {
         site={selectedDetailSite}
         isOpen={!!selectedDetailSite}
         onClose={() => setSelectedDetailSite(null)}
+        onSiteUpdated={fetchSites}
       />
     </div>
   );

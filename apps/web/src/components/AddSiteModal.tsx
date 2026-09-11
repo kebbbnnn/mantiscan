@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { CreateSiteInput } from '@mantiscan/shared';
-import { DEFAULT_THRESHOLDS } from '@mantiscan/shared';
-import { X, Plus, Sliders, Bell } from 'lucide-react';
+import { DEFAULT_THRESHOLDS, AUDIT_INTERVAL_PRESETS, DEFAULT_SCHEDULE } from '@mantiscan/shared';
+import { getUserTimeZone, localHourToUtc, formatHour, getIntervalName } from '../lib/schedule.js';
+import { X, Plus, Sliders, Bell, Calendar, Clock } from 'lucide-react';
 
 interface AddSiteModalProps {
   isOpen: boolean;
@@ -16,10 +17,15 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
   const [a11yThreshold, setA11yThreshold] = useState<number>(DEFAULT_THRESHOLDS.accessibility);
   const [bestPracticesThreshold, setBestPracticesThreshold] = useState<number>(DEFAULT_THRESHOLDS.bestPractices);
   const [seoThreshold, setSeoThreshold] = useState<number>(DEFAULT_THRESHOLDS.seo);
+  const [intervalDays, setIntervalDays] = useState<number>(DEFAULT_SCHEDULE.intervalDays);
+  const [localHour, setLocalHour] = useState<number>(2); // 2:00 AM local time default
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const userTimeZone = getUserTimeZone();
+  const utcHour = localHourToUtc(localHour);
 
   if (!isOpen) return null;
 
@@ -40,6 +46,8 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
         a11yThreshold,
         bestPracticesThreshold,
         seoThreshold,
+        auditIntervalDays: intervalDays,
+        auditHourUtc: utcHour,
         slackWebhookUrl: slackWebhookUrl.trim() || undefined,
         discordWebhookUrl: discordWebhookUrl.trim() || undefined,
       });
@@ -47,6 +55,8 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
       // Reset form
       setName('');
       setUrl('');
+      setIntervalDays(DEFAULT_SCHEDULE.intervalDays);
+      setLocalHour(2);
       setSlackWebhookUrl('');
       setDiscordWebhookUrl('');
     } catch (err: unknown) {
@@ -122,6 +132,88 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
               onChange={(e) => setUrl(e.target.value)}
               required
             />
+          </div>
+
+          {/* Audit Schedule Section */}
+          <div style={{ margin: '24px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+              <Calendar size={16} color="var(--accent-mantis)" />
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Automated Audit Schedule
+              </span>
+            </div>
+
+            {/* Recurrence Cadence Pills */}
+            <div style={{ marginBottom: '14px' }}>
+              <label className="form-label" style={{ marginBottom: '8px' }}>Recurrence Cadence</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {AUDIT_INTERVAL_PRESETS.map((preset) => {
+                  const isSelected = intervalDays === preset.value;
+                  return (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => setIntervalDays(preset.value)}
+                      style={{
+                        padding: '8px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8125rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        border: isSelected ? '1px solid var(--accent-mantis)' : '1px solid var(--border-subtle)',
+                        background: isSelected ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                        color: isSelected ? 'var(--accent-mantis)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Preferred Time of Day */}
+            <div className="form-group" style={{ marginBottom: '14px' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={13} color="var(--accent-cyan)" />
+                Preferred Execution Time (Your Local Time)
+              </label>
+              <select
+                className="form-input"
+                value={localHour}
+                onChange={(e) => setLocalHour(parseInt(e.target.value, 10))}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i} value={i} style={{ background: '#12161f', color: '#fff' }}>
+                    {formatHour(i)} {i >= 1 && i <= 5 ? '(Off-peak recommended)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Dynamic Schedule Preview Helper */}
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '0.75rem',
+                color: 'var(--text-muted)',
+                lineHeight: 1.5,
+              }}
+            >
+              🗓️ Repeats <strong style={{ color: 'var(--text-primary)' }}>{getIntervalName(intervalDays)}</strong> at{' '}
+              <strong style={{ color: 'var(--accent-mantis)' }}>{formatHour(localHour)}</strong> in your timezone (
+              <span style={{ color: 'var(--text-secondary)' }}>{userTimeZone}</span> • {utcHour}:00 UTC). Initial baseline scan runs immediately upon adding.
+            </div>
           </div>
 
           {/* Thresholds Section */}

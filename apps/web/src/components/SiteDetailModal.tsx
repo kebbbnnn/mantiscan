@@ -1,21 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Site, AuditRun, DeviceStrategy } from '@mantiscan/shared';
+import { AUDIT_INTERVAL_PRESETS } from '@mantiscan/shared';
 import { ScoreGauge } from './ScoreGauge.js';
 import { apiUrl } from '../lib/api.js';
-import { X, ExternalLink, Smartphone, Monitor, Plus, Loader2 } from 'lucide-react';
+import {
+  getUserTimeZone,
+  localHourToUtc,
+  utcHourToLocal,
+  formatHour,
+  formatScheduleSummary,
+  formatNextRunCountdown,
+} from '../lib/schedule.js';
+import { X, ExternalLink, Smartphone, Monitor, Plus, Loader2, Calendar, Clock, Check } from 'lucide-react';
 
 interface SiteDetailModalProps {
   site: Site | null;
   isOpen: boolean;
   onClose: () => void;
+  onSiteUpdated?: () => void;
 }
 
-export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, onClose }) => {
+export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, onClose, onSiteUpdated }) => {
+  const [currentSite, setCurrentSite] = useState<Site | null>(site);
   const [runs, setRuns] = useState<AuditRun[]>([]);
   const [strategy, setStrategy] = useState<DeviceStrategy>('mobile');
   const [loading, setLoading] = useState(false);
+  const [intervalDays, setIntervalDays] = useState<number>(site?.auditIntervalDays ?? 7);
+  const [localHour, setLocalHour] = useState<number>(() => utcHourToLocal(site?.auditHourUtc ?? 0));
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleSavedMsg, setScheduleSavedMsg] = useState(false);
   const [newChannelType, setNewChannelType] = useState<'slack' | 'discord'>('slack');
   const [newWebhookUrl, setNewWebhookUrl] = useState('');
+
+  const userTimeZone = getUserTimeZone();
 
   const fetchDetails = useCallback(async () => {
     if (!site) return;
@@ -25,6 +42,11 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
       if (res.ok) {
         const data = await res.json();
         setRuns(data.runs || []);
+        if (data.site) {
+          setCurrentSite(data.site);
+          setIntervalDays(data.site.auditIntervalDays ?? 7);
+          setLocalHour(utcHourToLocal(data.site.auditHourUtc ?? 0));
+        }
       }
     } catch (err) {
       console.error('Failed to fetch site details:', err);
@@ -35,21 +57,59 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
 
   useEffect(() => {
     if (isOpen && site) {
+      setCurrentSite(site);
+      setIntervalDays(site.auditIntervalDays ?? 7);
+      setLocalHour(utcHourToLocal(site.auditHourUtc ?? 0));
       fetchDetails();
     }
   }, [isOpen, site, fetchDetails]);
 
-  if (!isOpen || !site) return null;
+  if (!isOpen || !currentSite) return null;
+
+  const displaySite = currentSite;
+
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displaySite) return;
+    setSavingSchedule(true);
+    setScheduleSavedMsg(false);
+
+    try {
+      const targetUtcHour = localHourToUtc(localHour);
+      const res = await fetch(apiUrl(`/api/sites/${displaySite.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auditIntervalDays: intervalDays,
+          auditHourUtc: targetUtcHour,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.site) {
+          setCurrentSite(data.site);
+        }
+        setScheduleSavedMsg(true);
+        setTimeout(() => setScheduleSavedMsg(false), 3000);
+        onSiteUpdated?.();
+      }
+    } catch (err) {
+      console.error('Failed to update schedule:', err);
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
 
   const filteredRuns = runs.filter((r) => r.strategy === strategy);
-  const latestRun = filteredRuns[0] || site.latestRuns?.find((r) => r.strategy === strategy);
+  const latestRun = filteredRuns[0] || displaySite.latestRuns?.find((r) => r.strategy === strategy);
 
   const handleAddChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWebhookUrl.trim()) return;
 
     try {
-      const res = await fetch(apiUrl(`/api/sites/${site.id}/channels`), {
+      const res = await fetch(apiUrl(`/api/sites/${displaySite.id}/channels`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,7 +129,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
 
   const handleDeleteChannel = async (channelId: string) => {
     try {
-      await fetch(apiUrl(`/api/sites/${site.id}/channels/${channelId}`), {
+      await fetch(apiUrl(`/api/sites/${displaySite.id}/channels/${channelId}`), {
         method: 'DELETE',
       });
       fetchDetails();
@@ -86,15 +146,15 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {site.name}
+                {displaySite.name}
               </h2>
               {loading && <Loader2 size={16} color="var(--accent-mantis)" className="animate-pulse" />}
-              <span className={`badge badge-${site.status}`}>
-                ● {site.status}
+              <span className={`badge badge-${displaySite.status}`}>
+                ● {displaySite.status}
               </span>
             </div>
             <a
-              href={site.url}
+              href={displaySite.url}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -107,7 +167,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                 textDecoration: 'none',
               }}
             >
-              {site.url}
+              {displaySite.url}
               <ExternalLink size={12} />
             </a>
           </div>
@@ -244,11 +304,11 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                         {r.triggeredBy}
                       </td>
                       <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)' }}>
-                        <span style={{ color: r.performanceScore >= site.perfThreshold ? '#10b981' : '#ef4444' }}>
+                        <span style={{ color: r.performanceScore >= displaySite.perfThreshold ? '#10b981' : '#ef4444' }}>
                           {r.performanceScore}
                         </span>{' '}
                         /{' '}
-                        <span style={{ color: r.accessibilityScore >= site.a11yThreshold ? '#10b981' : '#ef4444' }}>
+                        <span style={{ color: r.accessibilityScore >= displaySite.a11yThreshold ? '#10b981' : '#ef4444' }}>
                           {r.accessibilityScore}
                         </span>{' '}
                         / {r.bestPracticesScore} / {r.seoScore}
@@ -275,14 +335,133 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
           )}
         </div>
 
+        {/* Automated Audit Schedule Configuration */}
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '18px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={16} color="var(--accent-mantis)" />
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                Automated Audit Schedule
+              </h4>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {scheduleSavedMsg && (
+                <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={14} /> Schedule Updated!
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '3px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(52, 211, 153, 0.1)',
+                  color: 'var(--accent-mantis)',
+                  border: '1px solid rgba(52, 211, 153, 0.25)',
+                }}
+              >
+                {formatScheduleSummary(displaySite.auditIntervalDays ?? 7, displaySite.auditHourUtc ?? 0)}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px',
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '14px' }}>
+              {/* Cadence */}
+              <div>
+                <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Cadence</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                  {AUDIT_INTERVAL_PRESETS.map((preset) => {
+                    const isSelected = intervalDays === preset.value;
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setIntervalDays(preset.value)}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          border: isSelected ? '1px solid var(--accent-mantis)' : '1px solid var(--border-subtle)',
+                          background: isSelected ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                          color: isSelected ? 'var(--accent-mantis)' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time of Day */}
+              <div>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                  <Clock size={12} color="var(--accent-cyan)" />
+                  Preferred Execution Time
+                </label>
+                <select
+                  className="form-input"
+                  value={localHour}
+                  onChange={(e) => setLocalHour(parseInt(e.target.value, 10))}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    fontSize: '0.8125rem',
+                    padding: '7px 10px',
+                  }}
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i} style={{ background: '#12161f', color: '#fff' }}>
+                      {formatHour(i)} {i >= 1 && i <= 5 ? '(Off-peak)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Your timezone: {userTimeZone} ({localHourToUtc(localHour)}:00 UTC)
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom info & Save button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Next scheduled audit: <strong style={{ color: 'var(--text-primary)' }}>{new Date(displaySite.nextAuditAt * 1000).toLocaleString()}</strong> ({formatNextRunCountdown(displaySite.nextAuditAt)})
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '0.8125rem' }}
+                disabled={savingSchedule}
+                onClick={handleSaveSchedule}
+              >
+                {savingSchedule ? 'Saving...' : 'Update Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Alert Channels Management */}
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
           <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px' }}>
             Configured Notification Channels
           </h4>
-          {site.channels && site.channels.length > 0 ? (
+          {displaySite.channels && displaySite.channels.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-              {site.channels.map((ch) => (
+              {displaySite.channels.map((ch) => (
                 <div
                   key={ch.id}
                   style={{

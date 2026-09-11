@@ -11,6 +11,8 @@ export const sites = sqliteTable(
     bestPracticesThreshold: integer('best_practices_threshold').notNull().default(85),
     seoThreshold: integer('seo_threshold').notNull().default(90),
     status: text('status').$type<'healthy' | 'degraded' | 'pending' | 'unknown'>().notNull().default('unknown'),
+    auditIntervalDays: integer('audit_interval_days').notNull().default(7),
+    auditHourUtc: integer('audit_hour_utc').notNull().default(0),
     nextAuditAt: integer('next_audit_at').notNull(), // unix seconds
     lastAuditedAt: integer('last_audited_at'), // unix seconds
     lastRunStatus: text('last_run_status').$type<'success' | 'failed' | 'running'>(),

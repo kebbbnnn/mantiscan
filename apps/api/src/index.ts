@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { lte } from 'drizzle-orm';
+import { lte, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { sitesRouter } from './routes/sites.js';
 import { webhookRouter } from './routes/webhook.js';
 import { sites } from './db/schema.js';
 import { triggerAuditWorkflow } from './services/github.js';
+import { calculateNextAuditAt } from './services/schedule.js';
 
 type Bindings = {
   DB: D1Database;
@@ -75,6 +76,23 @@ export default {
     for (const site of dueSites) {
       ctx.waitUntil(
         (async () => {
+          // Calculate next recurrence
+          const nextAuditAt = calculateNextAuditAt(
+            site.auditIntervalDays,
+            site.auditHourUtc,
+            new Date()
+          );
+
+          // Advance nextAuditAt immediately to avoid duplicate runs & failure retry loops
+          await db
+            .update(sites)
+            .set({
+              nextAuditAt,
+              lastRunStatus: 'running',
+            })
+            .where(eq(sites.id, site.id))
+            .run();
+
           // Trigger GitHub Actions audit workflow
           await triggerAuditWorkflow({
             siteId: site.id,
@@ -86,16 +104,6 @@ export default {
             githubRepo: env.GITHUB_REPO,
             githubToken: env.GITHUB_TOKEN,
           });
-
-          // Reschedule for 7 days later
-          await db
-            .update(sites)
-            .set({
-              nextAuditAt: now + 604800,
-              lastRunStatus: 'running',
-            })
-            .where(lte(sites.id, site.id))
-            .run();
         })()
       );
     }
