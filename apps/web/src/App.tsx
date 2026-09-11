@@ -228,7 +228,7 @@ export const App: React.FC = () => {
           fontSize: '0.8125rem',
         }}
       >
-        <p>Mantiscan — $0 Budget Automated Lighthouse CI &amp; Alerting System</p>
+        <p>Mantiscan — An Automated Lighthouse CI &amp; Alerting System</p>
       </footer>
 
       {/* Modals */}
