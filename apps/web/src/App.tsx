@@ -5,7 +5,7 @@ import { Navbar } from './components/Navbar.js';
 import { SiteCard } from './components/SiteCard.js';
 import { AddSiteModal } from './components/AddSiteModal.js';
 import { SiteDetailModal } from './components/SiteDetailModal.js';
-import { Shield, Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
@@ -169,20 +169,17 @@ export const App: React.FC = () => {
               margin: '40px auto',
             }}
           >
-            <div
+            <img
+              src="/logo.png"
+              alt="Mantiscan Mascot"
               style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(16, 185, 129, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: '76px',
+                height: '76px',
+                objectFit: 'contain',
                 margin: '0 auto 16px auto',
+                filter: 'drop-shadow(0 0 24px rgba(16, 185, 129, 0.35))',
               }}
-            >
-              <Shield size={28} color="var(--accent-mantis)" />
-            </div>
+            />
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>
               No Websites Monitored Yet
             </h2>

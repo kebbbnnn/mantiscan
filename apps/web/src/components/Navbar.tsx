@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Plus, Activity } from 'lucide-react';
+import { Plus, Activity } from 'lucide-react';
 import type { Site } from '@mantiscan/shared';
 
 interface NavbarProps {
@@ -33,21 +33,17 @@ export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal }) => {
         }}
       >
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img
+            src="/logo.png"
+            alt="Mantiscan Logo"
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+              width: '42px',
+              height: '42px',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 14px rgba(16, 185, 129, 0.4))',
             }}
-          >
-            <Shield size={22} color="#ffffff" />
-          </div>
+          />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
