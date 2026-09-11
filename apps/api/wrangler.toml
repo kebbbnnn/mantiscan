@@ -1,0 +1,19 @@
+name = "mantiscan-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+APP_ENV = "development"
+INGEST_SECRET = "mantiscan-dev-secret-token"
+GITHUB_OWNER = ""
+GITHUB_REPO = ""
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mantiscan-db"
+database_id = "mantiscan-local-db"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["0 * * * *"]

@@ -1,0 +1,32 @@
+{
+  "name": "mantiscan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Automated Lighthouse CI audit and alerting SaaS for client websites",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspace=apps/api",
+    "audit:local": "node scripts/run-audit-local.js"
+  },
+  "keywords": [
+    "lighthouse",
+    "pagespeed",
+    "accessibility",
+    "monitoring",
+    "github-actions",
+    "cloudflare"
+  ],
+  "author": "",
+  "devDependencies": {
+    "@lhci/cli": "^0.14.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Production build outputs
+dist/
+build/
+
+# Cloudflare Wrangler state and local databases
+.wrangler/
+
+# Lighthouse CI output
+.lighthouseci/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
