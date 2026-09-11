@@ -178,6 +178,62 @@ export const SiteCard: React.FC<SiteCardProps> = ({
         />
       </div>
 
+      {/* Core Web Vitals metrics strip */}
+      {currentRun && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 12px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span>LCP:</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                color: (currentRun.lcpMs ?? 0) <= 2500 ? '#10b981' : '#f59e0b',
+              }}
+            >
+              {currentRun.lcpMs ? `${(currentRun.lcpMs / 1000).toFixed(2)}s` : '—'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span>CLS:</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                color: (currentRun.cls ?? 0) <= 0.1 ? '#10b981' : '#f59e0b',
+              }}
+            >
+              {currentRun.cls !== null && currentRun.cls !== undefined ? currentRun.cls.toFixed(3) : '0.000'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span>Viewport:</span>
+            <span
+              style={{
+                textTransform: 'capitalize',
+                fontWeight: 600,
+                color: strategy === 'mobile' ? 'var(--accent-cyan)' : 'var(--accent-mantis)',
+              }}
+            >
+              {strategy}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Threshold breach warning banner */}
       {currentRun &&
         (currentRun.performanceScore < site.perfThreshold ||

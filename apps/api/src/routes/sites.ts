@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { sites, auditRuns, alertChannels } from '../db/schema.js';
 import { triggerAuditWorkflow } from '../services/github.js';
@@ -22,22 +22,32 @@ sitesRouter.get('/', async (c) => {
   const db = drizzle(c.env.DB);
   const allSites = await db.select().from(sites).all();
 
-  // For each site, fetch alert channels and latest runs
+  // For each site, fetch alert channels and latest runs for each strategy
   const enrichedSites = await Promise.all(
     allSites.map(async (site) => {
-      const channels = await db
-        .select()
-        .from(alertChannels)
-        .where(eq(alertChannels.siteId, site.id))
-        .all();
+      const [channels, latestMobile, latestDesktop] = await Promise.all([
+        db
+          .select()
+          .from(alertChannels)
+          .where(eq(alertChannels.siteId, site.id))
+          .all(),
+        db
+          .select()
+          .from(auditRuns)
+          .where(and(eq(auditRuns.siteId, site.id), eq(auditRuns.strategy, 'mobile')))
+          .orderBy(desc(auditRuns.createdAt))
+          .limit(1)
+          .get(),
+        db
+          .select()
+          .from(auditRuns)
+          .where(and(eq(auditRuns.siteId, site.id), eq(auditRuns.strategy, 'desktop')))
+          .orderBy(desc(auditRuns.createdAt))
+          .limit(1)
+          .get(),
+      ]);
 
-      const latestRuns = await db
-        .select()
-        .from(auditRuns)
-        .where(eq(auditRuns.siteId, site.id))
-        .orderBy(desc(auditRuns.createdAt))
-        .limit(2)
-        .all();
+      const latestRuns = [latestMobile, latestDesktop].filter(Boolean);
 
       return {
         ...site,
