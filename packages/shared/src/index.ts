@@ -98,6 +98,7 @@ export interface UpdateSiteInput {
 
 export const AUDIT_INTERVAL_PRESETS = [
   { label: 'Daily', value: 1, description: 'Every 24 hours' },
+  { label: 'Every 3 days', value: 3, description: 'Every 3 days' },
   { label: 'Weekly (7 days)', value: 7, description: 'Every 7 days' },
   { label: 'Bi-weekly (14 days)', value: 14, description: 'Every 14 days' },
   { label: 'Monthly (30 days)', value: 30, description: 'Every 30 days' },

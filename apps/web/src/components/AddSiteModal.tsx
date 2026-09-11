@@ -146,7 +146,7 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
             {/* Recurrence Cadence Pills */}
             <div style={{ marginBottom: '14px' }}>
               <label className="form-label" style={{ marginBottom: '8px' }}>Recurrence Cadence</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '8px' }}>
                 {AUDIT_INTERVAL_PRESETS.map((preset) => {
                   const isSelected = intervalDays === preset.value;
                   return (

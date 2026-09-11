@@ -378,7 +378,7 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
               {/* Cadence */}
               <div>
                 <label className="form-label" style={{ marginBottom: '6px' }}>Recurrence Cadence</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '6px' }}>
                   {AUDIT_INTERVAL_PRESETS.map((preset) => {
                     const isSelected = intervalDays === preset.value;
                     return (

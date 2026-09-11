@@ -45,6 +45,8 @@ export function getIntervalName(days: number): string {
   switch (days) {
     case 1:
       return 'Daily';
+    case 3:
+      return 'Every 3 days';
     case 7:
       return 'Weekly';
     case 14:
