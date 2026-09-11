@@ -7,96 +7,134 @@ const INGEST_SECRET = process.env.INGEST_SECRET;
 const RUN_ID = process.env.RUN_ID;
 const GITHUB_REPO = process.env.GITHUB_REPO;
 
+console.log('--- Mantiscan Result Ingestion ---');
+console.log('SITE_ID:', SITE_ID);
+console.log('CALLBACK_URL:', CALLBACK_URL);
+console.log('RUN_ID:', RUN_ID);
+
 if (!SITE_ID || !CALLBACK_URL || !INGEST_SECRET) {
-  console.error('Missing mandatory environment variables: SITE_ID, CALLBACK_URL, INGEST_SECRET');
+  console.error('Missing required environment variables: SITE_ID, CALLBACK_URL, INGEST_SECRET');
   process.exit(1);
 }
 
-function parseStrategyResults(strategyDir, strategyName) {
-  const manifestPath = path.join(strategyDir, 'manifest.json');
-  if (!fs.existsSync(manifestPath)) {
-    console.warn(`No manifest found at ${manifestPath}`);
-    return null;
-  }
-
+function extractRunData(filePath) {
   try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    if (!Array.isArray(manifest) || manifest.length === 0) {
-      console.warn(`Manifest at ${manifestPath} is empty`);
-      return null;
-    }
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(raw);
 
-    // Pick the median run (or first representative run)
-    const runEntry = manifest[0];
-    const summary = runEntry.summary;
+    const formFactor =
+      data.configSettings?.formFactor ||
+      data.configSettings?.emulatedFormFactor ||
+      'mobile';
 
     const scores = {
-      performance: Math.round((summary.performance ?? 0) * 100),
-      accessibility: Math.round((summary.accessibility ?? 0) * 100),
-      bestPractices: Math.round((summary['best-practices'] ?? 0) * 100),
-      seo: Math.round((summary.seo ?? 0) * 100),
+      performance: Math.round((data.categories?.performance?.score ?? 0) * 100),
+      accessibility: Math.round((data.categories?.accessibility?.score ?? 0) * 100),
+      bestPractices: Math.round((data.categories?.['best-practices']?.score ?? 0) * 100),
+      seo: Math.round((data.categories?.seo?.score ?? 0) * 100),
     };
 
-    // Try reading the full json report file to extract Core Web Vitals
-    let metrics = {};
-    if (runEntry.jsonPath && fs.existsSync(runEntry.jsonPath)) {
-      try {
-        const fullReport = JSON.parse(fs.readFileSync(runEntry.jsonPath, 'utf8'));
-        const audits = fullReport.audits || {};
-        metrics = {
-          lcpMs: audits['largest-contentful-paint']?.numericValue
-            ? Math.round(audits['largest-contentful-paint'].numericValue)
-            : null,
-          cls: audits['cumulative-layout-shift']?.numericValue !== undefined
-            ? Number(audits['cumulative-layout-shift'].numericValue.toFixed(3))
-            : null,
-          fcpMs: audits['first-contentful-paint']?.numericValue
-            ? Math.round(audits['first-contentful-paint'].numericValue)
-            : null,
-          ttfbMs: audits['server-response-time']?.numericValue
-            ? Math.round(audits['server-response-time'].numericValue)
-            : null,
-          inpMs: audits['interaction-to-next-paint']?.numericValue
-            ? Math.round(audits['interaction-to-next-paint'].numericValue)
-            : null,
-        };
-      } catch (e) {
-        console.warn('Could not parse full report for detailed metrics:', e.message);
-      }
-    }
-
-    const reportUrl = GITHUB_REPO && RUN_ID
-      ? `https://github.com/${GITHUB_REPO}/actions/runs/${RUN_ID}`
-      : null;
+    const audits = data.audits || {};
+    const metrics = {
+      lcpMs: audits['largest-contentful-paint']?.numericValue
+        ? Math.round(audits['largest-contentful-paint'].numericValue)
+        : null,
+      cls: audits['cumulative-layout-shift']?.numericValue !== undefined
+        ? Number(audits['cumulative-layout-shift'].numericValue.toFixed(3))
+        : null,
+      fcpMs: audits['first-contentful-paint']?.numericValue
+        ? Math.round(audits['first-contentful-paint'].numericValue)
+        : null,
+      ttfbMs: audits['server-response-time']?.numericValue
+        ? Math.round(audits['server-response-time'].numericValue)
+        : null,
+      inpMs: audits['interaction-to-next-paint']?.numericValue
+        ? Math.round(audits['interaction-to-next-paint'].numericValue)
+        : null,
+    };
 
     return {
-      siteId: SITE_ID,
-      strategy: strategyName,
-      triggeredBy: 'manual',
+      formFactor: formFactor.toLowerCase() === 'desktop' ? 'desktop' : 'mobile',
       scores,
       metrics,
-      reportUrl,
     };
   } catch (err) {
-    console.error(`Error parsing manifest for ${strategyName}:`, err);
+    console.error(`Error reading report ${filePath}:`, err.message);
     return null;
   }
 }
 
-async function sendResults() {
-  const strategies = [
-    { dir: '.lighthouseci/mobile', name: 'mobile' },
-    { dir: '.lighthouseci/desktop', name: 'desktop' },
-  ];
+async function postResults() {
+  const dir = path.join(process.cwd(), '.lighthouseci');
+  const exists = fs.existsSync(dir);
+  const files = exists ? fs.readdirSync(dir).filter((f) => f.startsWith('lhr-') && f.endsWith('.json')) : [];
 
-  for (const item of strategies) {
-    const payload = parseStrategyResults(item.dir, item.name);
-    if (!payload) {
-      console.log(`Skipping ${item.name} - no results found.`);
+  if (!exists || files.length === 0) {
+    console.error(`No Lighthouse reports were generated in ${dir}. Notifying API of failure...`);
+    try {
+      const res = await fetch(CALLBACK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ingest-Secret': INGEST_SECRET,
+        },
+        body: JSON.stringify({
+          siteId: SITE_ID,
+          status: 'failed',
+          error: 'No Lighthouse reports generated by runner',
+        }),
+      });
+      console.log(`API failure notification status: ${res.status}`);
+    } catch (e) {
+      console.error('Failed to notify API of failure:', e.message);
+    }
+    process.exit(1);
+  }
+
+  console.log(`Found ${files.length} Lighthouse report files.`);
+
+  // Group runs by strategy (mobile vs desktop)
+  const runsByStrategy = {
+    mobile: [],
+    desktop: [],
+  };
+
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const parsed = extractRunData(fullPath);
+    if (parsed) {
+      runsByStrategy[parsed.formFactor].push(parsed);
+    }
+  }
+
+  const reportUrl = GITHUB_REPO && RUN_ID
+    ? `https://github.com/${GITHUB_REPO}/actions/runs/${RUN_ID}`
+    : null;
+
+  // For each strategy, select the median performance run and post to Cloudflare API
+  for (const strategy of ['mobile', 'desktop']) {
+    const runs = runsByStrategy[strategy];
+    if (runs.length === 0) {
+      console.warn(`No runs found for strategy: ${strategy}`);
       continue;
     }
 
-    console.log(`Posting ${item.name} results to ${CALLBACK_URL}...`, JSON.stringify(payload.scores));
+    // Sort by performance score and pick the median
+    runs.sort((a, b) => a.scores.performance - b.scores.performance);
+    const medianIndex = Math.floor(runs.length / 2);
+    const selectedRun = runs[medianIndex];
+
+    const payload = {
+      siteId: SITE_ID,
+      strategy,
+      triggeredBy: 'manual',
+      scores: selectedRun.scores,
+      metrics: selectedRun.metrics,
+      reportUrl,
+    };
+
+    console.log(`Posting median ${strategy.toUpperCase()} scores to API:`, JSON.stringify(payload.scores));
+
     try {
       const res = await fetch(CALLBACK_URL, {
         method: 'POST',
@@ -107,12 +145,18 @@ async function sendResults() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      console.log(`Response for ${item.name}:`, data);
+      const responseText = await res.text();
+      console.log(`API response [${res.status}]:`, responseText);
+
+      if (!res.ok) {
+        console.error(`Failed to post ${strategy} results. Status: ${res.status}`);
+      }
     } catch (err) {
-      console.error(`Failed to post results for ${item.name}:`, err.message);
+      console.error(`Network error posting ${strategy} results:`, err.message);
     }
   }
+
+  console.log('--- Ingestion Complete ---');
 }
 
-sendResults();
+postResults();

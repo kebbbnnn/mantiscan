@@ -20,9 +20,9 @@ webhookRouter.post('/audit-result', async (c) => {
     return c.json({ error: 'Unauthorized: Invalid ingestion secret' }, 401);
   }
 
-  const payload = await c.req.json<AuditResultPayload>();
-  if (!payload.siteId || !payload.scores || !payload.strategy) {
-    return c.json({ error: 'Missing required fields: siteId, scores, and strategy are mandatory' }, 400);
+  const payload = await c.req.json<AuditResultPayload & { status?: 'failed'; error?: string }>();
+  if (!payload.siteId) {
+    return c.json({ error: 'Missing required field: siteId' }, 400);
   }
 
   const db = drizzle(c.env.DB);
@@ -32,6 +32,22 @@ webhookRouter.post('/audit-result', async (c) => {
   const site = await db.select().from(sites).where(eq(sites.id, payload.siteId)).get();
   if (!site) {
     return c.json({ error: `Site with id ${payload.siteId} not found` }, 404);
+  }
+
+  // Handle audit failure report from runner
+  if (payload.status === 'failed') {
+    await db
+      .update(sites)
+      .set({
+        lastRunStatus: 'failed',
+      })
+      .where(eq(sites.id, site.id))
+      .run();
+    return c.json({ success: true, message: 'Site audit marked as failed' });
+  }
+
+  if (!payload.scores || !payload.strategy) {
+    return c.json({ error: 'Missing required fields: scores and strategy are mandatory' }, 400);
   }
 
   // 2. Fetch the previous run for this site and strategy

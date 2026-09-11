@@ -42,32 +42,31 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci || npm install
 
-      - name: Install Google Chrome Stable
+      - name: Ensure Google Chrome Stable
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget gnupg
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          if ! command -v google-chrome &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y wget gnupg
+            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable
+          fi
+          google-chrome --version
 
-      - name: Run Lighthouse CI (Mobile)
+      - name: Run Lighthouse CI (Mobile - 3 Runs)
         run: |
-          npx @lhci/cli autorun --config=lighthouserc.mobile.js || true
-        env:
-          TARGET_URL: ${{ inputs.url }}
+          npx @lhci/cli collect --url="${{ inputs.url }}" --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" --settings.emulatedFormFactor=mobile --additive
 
-      - name: Run Lighthouse CI (Desktop)
+      - name: Run Lighthouse CI (Desktop - 3 Runs)
         run: |
-          npx @lhci/cli autorun --config=lighthouserc.desktop.js || true
-        env:
-          TARGET_URL: ${{ inputs.url }}
+          npx @lhci/cli collect --url="${{ inputs.url }}" --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" --settings.preset=desktop --additive
 
       - name: Upload Lighthouse Reports Artifact
         uses: actions/upload-artifact@v4
