@@ -5,9 +5,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 APP_ENV = "development"
-INGEST_SECRET = "mantiscan-dev-secret-token"
-GITHUB_OWNER = ""
-GITHUB_REPO = ""
+GITHUB_OWNER = "kebbbnnn"
+GITHUB_REPO = "mantiscan"
 
 [[d1_databases]]
 binding = "DB"
