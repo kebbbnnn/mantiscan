@@ -5,9 +5,10 @@ import type { Site } from '@mantiscan/shared';
 interface NavbarProps {
   sites: Site[];
   onOpenAddModal: () => void;
+  onNavigate?: (path: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal, onNavigate }) => {
   const healthyCount = sites.filter((s) => s.status === 'healthy').length;
   const degradedCount = sites.filter((s) => s.status === 'degraded').length;
 
@@ -33,7 +34,15 @@ export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal }) => {
         }}
       >
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          onClick={() => onNavigate?.('/')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: onNavigate ? 'pointer' : 'default',
+          }}
+        >
           <img
             src="/logo.png"
             alt="Mantiscan Logo"

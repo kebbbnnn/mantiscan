@@ -8,9 +8,10 @@ interface AddSiteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (input: CreateSiteInput) => Promise<void>;
+  onNavigate?: (path: string) => void;
 }
 
-export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onSubmit, onNavigate }) => {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [perfThreshold, setPerfThreshold] = useState<number>(DEFAULT_THRESHOLDS.performance);
@@ -305,7 +306,51 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+          {/* Submission Legal Disclaimer */}
+          <p
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              lineHeight: 1.5,
+              marginTop: '16px',
+              textAlign: 'center',
+            }}
+          >
+            By adding a website, you confirm you have authorization to audit this domain and agree to our{' '}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onClose();
+                  onNavigate('/terms');
+                }
+              }}
+              style={{ color: 'var(--accent-mantis)', textDecoration: 'underline' }}
+            >
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onClose();
+                  onNavigate('/privacy');
+                }
+              }}
+              style={{ color: 'var(--accent-mantis)', textDecoration: 'underline' }}
+            >
+              Privacy Policy
+            </a>.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
               Cancel
             </button>

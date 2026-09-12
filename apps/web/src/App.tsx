@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Site, CreateSiteInput } from '@mantiscan/shared';
 import { apiUrl } from './lib/api.js';
+import { useRouter } from './lib/router.js';
 import { Navbar } from './components/Navbar.js';
 import { SiteCard } from './components/SiteCard.js';
 import { AddSiteModal } from './components/AddSiteModal.js';
 import { SiteDetailModal } from './components/SiteDetailModal.js';
+import { PrivacyPage } from './pages/PrivacyPage.js';
+import { TermsPage } from './pages/TermsPage.js';
 import { Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -96,9 +99,19 @@ export const App: React.FC = () => {
     }
   };
 
+  const { currentPath, navigate } = useRouter();
+
+  if (currentPath === '/privacy') {
+    return <PrivacyPage onNavigate={navigate} />;
+  }
+
+  if (currentPath === '/terms') {
+    return <TermsPage onNavigate={navigate} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar sites={sites} onOpenAddModal={() => setIsAddModalOpen(true)} />
+      <Navbar sites={sites} onOpenAddModal={() => setIsAddModalOpen(true)} onNavigate={navigate} />
 
       {/* Main Content Area */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', padding: '36px 24px', flex: 1 }}>
@@ -228,7 +241,42 @@ export const App: React.FC = () => {
           fontSize: '0.8125rem',
         }}
       >
-        <p>Mantiscan — An Automated Lighthouse CI &amp; Alerting System</p>
+        <p style={{ marginBottom: '8px' }}>
+          Mantiscan — An Automated Lighthouse CI &amp; Alerting System
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/privacy')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '0.8125rem',
+              textDecoration: 'underline',
+              padding: 0,
+            }}
+          >
+            Privacy Policy
+          </button>
+          <span style={{ color: 'var(--border-subtle)' }}>•</span>
+          <button
+            type="button"
+            onClick={() => navigate('/terms')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '0.8125rem',
+              textDecoration: 'underline',
+              padding: 0,
+            }}
+          >
+            Terms of Service
+          </button>
+        </div>
       </footer>
 
       {/* Modals */}
@@ -236,6 +284,7 @@ export const App: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddSite}
+        onNavigate={navigate}
       />
 
       <SiteDetailModal
