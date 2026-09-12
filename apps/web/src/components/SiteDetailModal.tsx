@@ -769,6 +769,8 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
               value={newWebhookUrl}
               onChange={(e) => setNewWebhookUrl(e.target.value)}
               style={{ flex: 1, padding: '8px 12px', fontSize: '0.8125rem' }}
+              required
+              aria-required="true"
             />
             <button type="submit" className="btn btn-secondary" style={{ padding: '8px 14px' }}>
               <Plus size={14} /> Add

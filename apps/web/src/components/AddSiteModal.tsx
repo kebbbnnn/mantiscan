@@ -121,36 +121,53 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Website Name</label>
+            <label className="form-label" htmlFor="add-site-name">
+              <span>
+                Website Name <span className="required-mark" aria-hidden="true">*</span>
+              </span>
+              <span className="field-badge field-badge-required">Required</span>
+            </label>
             <input
+              id="add-site-name"
               type="text"
               className="form-input"
               placeholder="e.g. Acme Production App"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              aria-required="true"
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Target URL</label>
+            <label className="form-label" htmlFor="add-site-url">
+              <span>
+                Target URL <span className="required-mark" aria-hidden="true">*</span>
+              </span>
+              <span className="field-badge field-badge-required">Required</span>
+            </label>
             <input
+              id="add-site-url"
               type="text"
               className="form-input"
               placeholder="https://example.com"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               required
+              aria-required="true"
             />
           </div>
 
           {/* Audit Schedule Section */}
           <div style={{ margin: '24px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
-              <Calendar size={16} color="var(--accent-mantis)" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Automated Audit Schedule
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={16} color="var(--accent-mantis)" />
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Automated Audit Schedule
+                </span>
+              </div>
+              <span className="field-badge field-badge-optional">Optional</span>
             </div>
 
             {/* Recurrence Cadence Pills */}
@@ -228,11 +245,14 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
 
           {/* Thresholds Section */}
           <div style={{ margin: '24px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
-              <Sliders size={16} color="var(--accent-mantis)" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Score Alert Thresholds
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sliders size={16} color="var(--accent-mantis)" />
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Score Alert Thresholds
+                </span>
+              </div>
+              <span className="field-badge field-badge-optional">Optional</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
@@ -347,16 +367,23 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
 
           {/* Webhook Notifications Section */}
           <div style={{ margin: '20px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
-              <Bell size={16} color="var(--accent-cyan)" />
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Team Alert Channels (Optional)
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Bell size={16} color="var(--accent-cyan)" />
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Team Alert Channels
+                </span>
+              </div>
+              <span className="field-badge field-badge-optional">Optional</span>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Slack Incoming Webhook URL</label>
+              <label className="form-label" htmlFor="slack-webhook-url">
+                <span>Slack Incoming Webhook URL</span>
+                <span className="field-badge field-badge-optional">Optional</span>
+              </label>
               <input
+                id="slack-webhook-url"
                 type="url"
                 className="form-input"
                 placeholder="https://hooks.slack.com/services/..."
@@ -366,8 +393,12 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
             </div>
 
             <div className="form-group">
-              <label className="form-label">Discord Webhook URL</label>
+              <label className="form-label" htmlFor="discord-webhook-url">
+                <span>Discord Webhook URL</span>
+                <span className="field-badge field-badge-optional">Optional</span>
+              </label>
               <input
+                id="discord-webhook-url"
                 type="url"
                 className="form-input"
                 placeholder="https://discord.com/api/webhooks/..."
