@@ -12,7 +12,7 @@ import {
   formatScheduleSummary,
   formatNextRunCountdown,
 } from '../lib/schedule.js';
-import { X, ExternalLink, Smartphone, Monitor, Plus, Loader2, Calendar, Clock, Check } from 'lucide-react';
+import { X, ExternalLink, Smartphone, Monitor, Plus, Calendar, Clock, Check } from 'lucide-react';
 
 interface SiteDetailModalProps {
   site: Site | null;
@@ -149,7 +149,6 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
               <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {displaySite.name}
               </h2>
-              {loading && <Loader2 size={16} color="var(--accent-mantis)" className="animate-pulse" />}
               <span className={`badge badge-${displaySite.status}`}>
                 ● {displaySite.status}
               </span>
@@ -276,14 +275,57 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
         </div>
 
         {/* Historical Multi-Scan Trend Graph */}
-        <SiteTrendChart runs={filteredRuns} site={displaySite} strategy={strategy} />
+        {loading && runs.length === 0 ? (
+          <div
+            className="skeleton-shimmer"
+            style={{
+              height: '240px',
+              marginBottom: '24px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          />
+        ) : (
+          <SiteTrendChart runs={filteredRuns} site={displaySite} strategy={strategy} />
+        )}
 
         {/* Audit Runs History Table */}
         <div style={{ marginBottom: '24px' }}>
           <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px' }}>
             Recent Audit History ({strategy})
           </h4>
-          {filteredRuns.length === 0 ? (
+          {loading && runs.length === 0 ? (
+            <div style={{ overflowX: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.04)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '10px 14px' }}>Date</th>
+                    <th style={{ padding: '10px 14px' }}>Trigger</th>
+                    <th style={{ padding: '10px 14px' }}>Scores (P / A / BP / SEO)</th>
+                    <th style={{ padding: '10px 14px' }}>Report</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3].map((i) => (
+                    <tr key={i} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '14px' }}>
+                        <div className="skeleton-shimmer" style={{ width: '140px', height: '14px', borderRadius: '4px' }} />
+                      </td>
+                      <td style={{ padding: '14px' }}>
+                        <div className="skeleton-shimmer" style={{ width: '60px', height: '14px', borderRadius: '4px' }} />
+                      </td>
+                      <td style={{ padding: '14px' }}>
+                        <div className="skeleton-shimmer" style={{ width: '120px', height: '14px', borderRadius: '4px' }} />
+                      </td>
+                      <td style={{ padding: '14px' }}>
+                        <div className="skeleton-shimmer" style={{ width: '70px', height: '14px', borderRadius: '4px' }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : filteredRuns.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
               No audits recorded yet for {strategy}. Click &quot;Scan Now&quot; to trigger the first run.
             </div>

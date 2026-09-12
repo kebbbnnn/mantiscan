@@ -4,6 +4,7 @@ import { apiUrl } from './lib/api.js';
 import { useRouter } from './lib/router.js';
 import { Navbar } from './components/Navbar.js';
 import { SiteCard } from './components/SiteCard.js';
+import { SiteCardSkeleton } from './components/SiteCardSkeleton.js';
 import { AddSiteModal } from './components/AddSiteModal.js';
 import { SiteDetailModal } from './components/SiteDetailModal.js';
 import { PrivacyPage } from './pages/PrivacyPage.js';
@@ -165,11 +166,20 @@ export const App: React.FC = () => {
           </p>
         </div>
 
-        {/* Loading state */}
+        {/* Loading skeleton state */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <RefreshCw size={28} className="animate-pulse" style={{ margin: '0 auto 12px auto' }} />
-            <p>Loading monitored websites...</p>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 420px), 1fr))',
+              gap: '24px',
+            }}
+            aria-busy="true"
+            aria-label="Loading monitored websites"
+          >
+            {[1, 2, 3].map((i) => (
+              <SiteCardSkeleton key={i} />
+            ))}
           </div>
         ) : sites.length === 0 ? (
           /* Empty state */
