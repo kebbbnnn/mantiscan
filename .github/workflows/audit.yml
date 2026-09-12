@@ -29,6 +29,10 @@ on:
     # Fallback weekly trigger: runs every Monday at 00:00 UTC
     - cron: '0 0 * * 1'
 
+concurrency:
+  group: audit-${{ inputs.site_id || 'scheduled' }}
+  cancel-in-progress: false
+
 jobs:
   audit:
     name: Run Lighthouse CI Audits

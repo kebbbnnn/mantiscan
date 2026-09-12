@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { sites, auditRuns, alertChannels } from '../db/schema.js';
 import { triggerAuditWorkflow } from '../services/github.js';
 import { calculateNextAuditAt } from '../services/schedule.js';
-import { DEFAULT_THRESHOLDS } from '@mantiscan/shared';
+import { DEFAULT_THRESHOLDS, getAuditCooldownStatus } from '@mantiscan/shared';
 import type { CreateSiteInput, UpdateSiteInput } from '@mantiscan/shared';
 
 type Bindings = {
@@ -114,6 +114,7 @@ sitesRouter.post('/', async (c) => {
     nextAuditAt,
     lastAuditedAt: null,
     lastRunStatus: 'running' as const,
+    lastScanRequestedAt: now,
     createdAt: now,
   };
 
@@ -297,10 +298,33 @@ sitesRouter.post('/:id/scan', async (c) => {
     return c.json({ error: 'Site not found' }, 404);
   }
 
-  // Update site status to 'running'
+  const now = Math.floor(Date.now() / 1000);
+  const cooldown = getAuditCooldownStatus(site, now);
+
+  if (!cooldown.canScan) {
+    c.header('Retry-After', String(cooldown.remainingSeconds));
+    const errorMessage =
+      cooldown.reason === 'running'
+        ? `Audit currently in progress. Please wait ${cooldown.remainingSeconds}s.`
+        : `Cooldown active. Please wait ${cooldown.remainingSeconds}s before scanning again.`;
+
+    return c.json(
+      {
+        error: errorMessage,
+        retryAfter: cooldown.remainingSeconds,
+        reason: cooldown.reason,
+      },
+      429
+    );
+  }
+
+  // Update site status to 'running' and set lastScanRequestedAt
   await db
     .update(sites)
-    .set({ lastRunStatus: 'running' })
+    .set({
+      lastRunStatus: 'running',
+      lastScanRequestedAt: now,
+    })
     .where(eq(sites.id, siteId))
     .run();
 
@@ -322,6 +346,7 @@ sitesRouter.post('/:id/scan', async (c) => {
     message: result.message,
     mode: result.mode,
     siteId: site.id,
+    lastScanRequestedAt: now,
   });
 });
 

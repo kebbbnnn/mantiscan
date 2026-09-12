@@ -61,9 +61,34 @@ export const App: React.FC = () => {
       const data = await res.json();
       if (res.ok) {
         showToast(data.message || 'Audit queued on runner', 'info');
+        const now = Math.floor(Date.now() / 1000);
+        setSites((prev) =>
+          prev.map((s) =>
+            s.id === siteId
+              ? {
+                  ...s,
+                  lastRunStatus: 'running',
+                  lastScanRequestedAt: data.lastScanRequestedAt || now,
+                }
+              : s
+          )
+        );
         fetchSites();
       } else {
         showToast(data.error || 'Failed to trigger audit', 'error');
+        if (res.status === 429 && data.retryAfter) {
+          const now = Math.floor(Date.now() / 1000);
+          setSites((prev) =>
+            prev.map((s) =>
+              s.id === siteId
+                ? {
+                    ...s,
+                    lastScanRequestedAt: now - (300 - data.retryAfter),
+                  }
+                : s
+            )
+          );
+        }
       }
     } catch (err) {
       showToast((err as Error).message, 'error');

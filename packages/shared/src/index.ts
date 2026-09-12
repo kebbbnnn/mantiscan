@@ -44,6 +44,7 @@ export interface Site {
   nextAuditAt: number;
   lastAuditedAt: number | null;
   lastRunStatus: 'success' | 'failed' | 'running' | null;
+  lastScanRequestedAt: number | null;
   createdAt: number;
   channels?: AlertChannel[];
   latestRuns?: AuditRun[];
@@ -129,3 +130,35 @@ export const DEFAULT_SCHEDULE = {
 } as const;
 
 export const REGRESSION_DELTA_THRESHOLD = 10;
+
+export const AUDIT_COOLDOWN_SECONDS = 300; // 5 minutes
+export const AUDIT_RUNNING_TIMEOUT_SECONDS = 600; // 10 minutes
+
+export interface CooldownStatus {
+  canScan: boolean;
+  remainingSeconds: number;
+  reason: 'none' | 'cooldown' | 'running';
+}
+
+export function getAuditCooldownStatus(
+  site: { lastScanRequestedAt?: number | null; lastRunStatus?: string | null },
+  nowSeconds: number = Math.floor(Date.now() / 1000)
+): CooldownStatus {
+  const elapsed = site.lastScanRequestedAt !== null && site.lastScanRequestedAt !== undefined
+    ? Math.max(0, nowSeconds - site.lastScanRequestedAt)
+    : Infinity;
+
+  // Self-healing check: if marked running for >= 10 minutes, treat as expired
+  const isActivelyRunning = site.lastRunStatus === 'running' && elapsed < AUDIT_RUNNING_TIMEOUT_SECONDS;
+  if (isActivelyRunning) {
+    const remaining = Math.max(1, AUDIT_COOLDOWN_SECONDS - elapsed);
+    return { canScan: false, remainingSeconds: remaining, reason: 'running' };
+  }
+
+  // Cooldown check: must be at least 5 minutes since last request
+  if (elapsed < AUDIT_COOLDOWN_SECONDS) {
+    return { canScan: false, remainingSeconds: AUDIT_COOLDOWN_SECONDS - elapsed, reason: 'cooldown' };
+  }
+
+  return { canScan: true, remainingSeconds: 0, reason: 'none' };
+}

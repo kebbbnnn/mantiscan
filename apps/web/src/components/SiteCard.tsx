@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Site, DeviceStrategy } from '@mantiscan/shared';
+import { getAuditCooldownStatus } from '@mantiscan/shared';
 import { ScoreGauge } from './ScoreGauge.js';
-import { Play, ExternalLink, Trash2, Smartphone, Monitor, Bell, AlertTriangle, Calendar } from 'lucide-react';
+import { Play, ExternalLink, Trash2, Smartphone, Monitor, Bell, AlertTriangle, Calendar, Clock, RefreshCw } from 'lucide-react';
 import { formatScheduleSummary, formatNextRunCountdown } from '../lib/schedule.js';
 
 interface SiteCardProps {
@@ -20,12 +21,35 @@ export const SiteCard: React.FC<SiteCardProps> = ({
   isScanning,
 }) => {
   const [strategy, setStrategy] = useState<DeviceStrategy>('mobile');
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(() => {
+    return getAuditCooldownStatus(site).remainingSeconds;
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const status = getAuditCooldownStatus(site);
+      setCooldownSeconds(status.remainingSeconds);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [site.lastScanRequestedAt, site.lastRunStatus]);
+
+  const cooldownStatus = getAuditCooldownStatus(site);
+  const isRunning = isScanning || (site.lastRunStatus === 'running' && cooldownStatus.reason === 'running');
+  const isInCooldown = !isRunning && cooldownSeconds > 0;
+
+  const formatCooldown = (totalSecs: number) => {
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
+  };
 
   // Find latest run matching selected strategy
   const currentRun = site.latestRuns?.find((r) => r.strategy === strategy) || site.latestRuns?.[0];
 
   const getStatusBadge = () => {
-    if (site.lastRunStatus === 'running' || isScanning) {
+    if (isRunning) {
       return <span className="badge badge-pending animate-pulse">● Auditing...</span>;
     }
     if (site.lastRunStatus === 'failed') {
@@ -356,12 +380,34 @@ export const SiteCard: React.FC<SiteCardProps> = ({
           <button
             type="button"
             className="btn btn-primary"
-            style={{ padding: '7px 14px', fontSize: '0.8125rem' }}
-            disabled={isScanning || site.lastRunStatus === 'running'}
+            style={{
+              padding: '7px 14px',
+              fontSize: '0.8125rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isInCooldown ? 0.75 : 1,
+            }}
+            disabled={isRunning || isInCooldown}
             onClick={() => onScan(site.id)}
+            title={isInCooldown ? `Cooldown active for ${formatCooldown(cooldownSeconds)}` : undefined}
           >
-            <Play size={13} fill="currentColor" />
-            {isScanning || site.lastRunStatus === 'running' ? 'Scanning...' : 'Scan Now'}
+            {isRunning ? (
+              <>
+                <RefreshCw size={13} className="animate-spin" />
+                Scanning...
+              </>
+            ) : isInCooldown ? (
+              <>
+                <Clock size={13} />
+                Cooldown {formatCooldown(cooldownSeconds)}
+              </>
+            ) : (
+              <>
+                <Play size={13} fill="currentColor" />
+                Scan Now
+              </>
+            )}
           </button>
           <button
             type="button"

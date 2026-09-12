@@ -19,6 +19,7 @@ export const sites = sqliteTable(
     nextAuditAt: integer('next_audit_at').notNull(), // unix seconds
     lastAuditedAt: integer('last_audited_at'), // unix seconds
     lastRunStatus: text('last_run_status').$type<'success' | 'failed' | 'running'>(),
+    lastScanRequestedAt: integer('last_scan_requested_at'), // unix seconds
     createdAt: integer('created_at').notNull(), // unix seconds
   },
   (table) => ({

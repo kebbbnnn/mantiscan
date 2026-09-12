@@ -7,6 +7,7 @@ import { webhookRouter } from './routes/webhook.js';
 import { sites } from './db/schema.js';
 import { triggerAuditWorkflow } from './services/github.js';
 import { calculateNextAuditAt } from './services/schedule.js';
+import { getAuditCooldownStatus } from '@mantiscan/shared';
 
 type Bindings = {
   DB: D1Database;
@@ -83,12 +84,24 @@ export default {
             new Date()
           );
 
-          // Advance nextAuditAt immediately to avoid duplicate runs & failure retry loops
+          const cooldown = getAuditCooldownStatus(site, now);
+          if (!cooldown.canScan) {
+            // Advance nextAuditAt to prevent hourly retry storm, but skip duplicate runner dispatch
+            await db
+              .update(sites)
+              .set({ nextAuditAt })
+              .where(eq(sites.id, site.id))
+              .run();
+            return;
+          }
+
+          // Advance nextAuditAt immediately and record lastScanRequestedAt to avoid duplicate runs
           await db
             .update(sites)
             .set({
               nextAuditAt,
               lastRunStatus: 'running',
+              lastScanRequestedAt: now,
             })
             .where(eq(sites.id, site.id))
             .run();
