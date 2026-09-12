@@ -35,6 +35,9 @@ export interface Site {
   a11yThreshold: number;
   bestPracticesThreshold: number;
   seoThreshold: number;
+  lcpThresholdMs: number;
+  clsThreshold: number;
+  inpThresholdMs: number;
   status: SiteHealthStatus;
   auditIntervalDays: number;
   auditHourUtc: number;
@@ -79,6 +82,9 @@ export interface CreateSiteInput {
   a11yThreshold?: number;
   bestPracticesThreshold?: number;
   seoThreshold?: number;
+  lcpThresholdMs?: number;
+  clsThreshold?: number;
+  inpThresholdMs?: number;
   auditIntervalDays?: number;
   auditHourUtc?: number;
   slackWebhookUrl?: string;
@@ -92,6 +98,9 @@ export interface UpdateSiteInput {
   a11yThreshold?: number;
   bestPracticesThreshold?: number;
   seoThreshold?: number;
+  lcpThresholdMs?: number;
+  clsThreshold?: number;
+  inpThresholdMs?: number;
   auditIntervalDays?: number;
   auditHourUtc?: number;
 }
@@ -109,6 +118,9 @@ export const DEFAULT_THRESHOLDS = {
   accessibility: 90,
   bestPractices: 85,
   seo: 90,
+  lcpMs: 2500,
+  cls: 0.1,
+  inpMs: 200,
 } as const;
 
 export const DEFAULT_SCHEDULE = {

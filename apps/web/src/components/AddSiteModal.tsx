@@ -18,6 +18,9 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
   const [a11yThreshold, setA11yThreshold] = useState<number>(DEFAULT_THRESHOLDS.accessibility);
   const [bestPracticesThreshold, setBestPracticesThreshold] = useState<number>(DEFAULT_THRESHOLDS.bestPractices);
   const [seoThreshold, setSeoThreshold] = useState<number>(DEFAULT_THRESHOLDS.seo);
+  const [lcpThresholdSec, setLcpThresholdSec] = useState<number>(DEFAULT_THRESHOLDS.lcpMs / 1000);
+  const [clsThresholdVal, setClsThresholdVal] = useState<number>(DEFAULT_THRESHOLDS.cls);
+  const [inpThresholdMsVal, setInpThresholdMsVal] = useState<number>(DEFAULT_THRESHOLDS.inpMs);
   const [intervalDays, setIntervalDays] = useState<number>(DEFAULT_SCHEDULE.intervalDays);
   const [localHour, setLocalHour] = useState<number>(2); // 2:00 AM local time default
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
@@ -47,6 +50,9 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
         a11yThreshold,
         bestPracticesThreshold,
         seoThreshold,
+        lcpThresholdMs: Math.round(lcpThresholdSec * 1000),
+        clsThreshold: clsThresholdVal,
+        inpThresholdMs: inpThresholdMsVal,
         auditIntervalDays: intervalDays,
         auditHourUtc: utcHour,
         slackWebhookUrl: slackWebhookUrl.trim() || undefined,
@@ -56,6 +62,9 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
       // Reset form
       setName('');
       setUrl('');
+      setLcpThresholdSec(DEFAULT_THRESHOLDS.lcpMs / 1000);
+      setClsThresholdVal(DEFAULT_THRESHOLDS.cls);
+      setInpThresholdMsVal(DEFAULT_THRESHOLDS.inpMs);
       setIntervalDays(DEFAULT_SCHEDULE.intervalDays);
       setLocalHour(2);
       setSlackWebhookUrl('');
@@ -270,6 +279,68 @@ export const AddSiteModal: React.FC<AddSiteModalProps> = ({ isOpen, onClose, onS
                   onChange={(e) => setSeoThreshold(parseInt(e.target.value, 10))}
                   style={{ width: '100%', accentColor: 'var(--accent-mantis)' }}
                 />
+              </div>
+            </div>
+
+            {/* Core Web Vitals Alert Thresholds */}
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Core Web Vitals Alert Thresholds (Max SLA)
+                </span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Google Good: LCP ≤ 2.5s • CLS ≤ 0.10 • INP ≤ 200ms
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px' }}>
+                <div>
+                  <label className="form-label">Max LCP ({lcpThresholdSec.toFixed(1)}s)</label>
+                  <input
+                    type="range"
+                    min="1.0"
+                    max="6.0"
+                    step="0.1"
+                    value={lcpThresholdSec}
+                    onChange={(e) => setLcpThresholdSec(parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Alert if &gt; {lcpThresholdSec.toFixed(1)}s
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label">Max CLS ({clsThresholdVal.toFixed(2)})</label>
+                  <input
+                    type="range"
+                    min="0.02"
+                    max="0.50"
+                    step="0.01"
+                    value={clsThresholdVal}
+                    onChange={(e) => setClsThresholdVal(parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Alert if &gt; {clsThresholdVal.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label">Max INP ({inpThresholdMsVal}ms)</label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="600"
+                    step="25"
+                    value={inpThresholdMsVal}
+                    onChange={(e) => setInpThresholdMsVal(parseInt(e.target.value, 10))}
+                    style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                  />
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Alert if &gt; {inpThresholdMsVal}ms
+                  </div>
+                </div>
               </div>
             </div>
           </div>

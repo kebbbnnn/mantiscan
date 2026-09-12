@@ -201,6 +201,31 @@ export const SiteTrendChart: React.FC<SiteTrendChartProps> = ({ runs, site, stra
     return null;
   }
 
+  const siteVitalThreshold = useMemo(() => {
+    if (selectedVital === 'lcp') {
+      const sec = (site.lcpThresholdMs ?? 2500) / 1000;
+      return {
+        value: sec,
+        label: `Threshold (≤ ${sec.toFixed(1)}s)`,
+      };
+    }
+    if (selectedVital === 'cls') {
+      const val = site.clsThreshold ?? 0.1;
+      return {
+        value: val,
+        label: `Threshold (≤ ${val.toFixed(2)})`,
+      };
+    }
+    if (selectedVital === 'inp') {
+      const val = site.inpThresholdMs ?? 200;
+      return {
+        value: val,
+        label: `Threshold (≤ ${val}ms)`,
+      };
+    }
+    return null;
+  }, [selectedVital, site]);
+
   const currentVitalConfig = VITALS.find((v) => v.key === selectedVital)!;
   const hoveredRun = hoveredIndex !== null ? chronologicalRuns[hoveredIndex] : null;
   const previousRun = hoveredIndex !== null && hoveredIndex > 0 ? chronologicalRuns[hoveredIndex - 1] : null;
@@ -488,32 +513,60 @@ export const SiteTrendChart: React.FC<SiteTrendChartProps> = ({ runs, site, stra
             </g>
           )}
 
-          {/* Reference Line: Google Good Benchmark in Vitals Mode */}
-          {mode === 'vitals' && (
+          {/* Reference Line: Configured SLA Threshold in Vitals Mode */}
+          {mode === 'vitals' && siteVitalThreshold && (
             <g>
               <line
                 x1={MARGIN_LEFT}
-                y1={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale)}
+                y1={getVitalYCoord(siteVitalThreshold.value, currentVitalConfig.maxScale)}
                 x2={SVG_WIDTH - MARGIN_RIGHT}
-                y2={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale)}
-                stroke="var(--accent-mantis)"
+                y2={getVitalYCoord(siteVitalThreshold.value, currentVitalConfig.maxScale)}
+                stroke="#ef4444"
                 strokeWidth="1.5"
                 strokeDasharray="6 4"
-                opacity="0.8"
+                opacity="0.85"
               />
               <text
                 x={SVG_WIDTH - MARGIN_RIGHT - 4}
-                y={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale) - 5}
-                fill="var(--accent-mantis)"
+                y={getVitalYCoord(siteVitalThreshold.value, currentVitalConfig.maxScale) - 5}
+                fill="#ef4444"
                 fontSize="9"
                 fontWeight="700"
                 textAnchor="end"
                 fontFamily="var(--font-mono)"
               >
-                {currentVitalConfig.goodLabel}
+                {siteVitalThreshold.label}
               </text>
             </g>
           )}
+
+          {/* Reference Line: Google Good Benchmark in Vitals Mode (if distinct from threshold) */}
+          {mode === 'vitals' &&
+            Math.abs((siteVitalThreshold?.value ?? 0) - currentVitalConfig.goodThreshold) > 0.01 && (
+              <g>
+                <line
+                  x1={MARGIN_LEFT}
+                  y1={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale)}
+                  x2={SVG_WIDTH - MARGIN_RIGHT}
+                  y2={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale)}
+                  stroke="var(--accent-mantis)"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                  opacity="0.6"
+                />
+                <text
+                  x={MARGIN_LEFT + 4}
+                  y={getVitalYCoord(currentVitalConfig.goodThreshold, currentVitalConfig.maxScale) - 5}
+                  fill="var(--accent-mantis)"
+                  fontSize="8.5"
+                  fontWeight="600"
+                  textAnchor="start"
+                  fontFamily="var(--font-mono)"
+                >
+                  Google {currentVitalConfig.goodLabel}
+                </text>
+              </g>
+            )}
 
           {/* Category Scores Mode: Lines & Points */}
           {mode === 'scores' &&

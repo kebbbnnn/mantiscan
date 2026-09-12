@@ -31,6 +31,7 @@ describe('Database Cascade Deletion Integrity in D1', () => {
     const migrationFiles = [
       resolve(__dirname, '../migrations/0001_initial.sql'),
       resolve(__dirname, '../migrations/0002_add_audit_schedule.sql'),
+      resolve(__dirname, '../migrations/0003_add_cwv_thresholds.sql'),
     ];
 
     for (const file of migrationFiles) {
@@ -212,5 +213,67 @@ describe('Database Cascade Deletion Integrity in D1', () => {
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body).toEqual({ error: 'Site not found' });
+  });
+
+  it('should persist custom Core Web Vitals thresholds on creation and support updates', async () => {
+    // 1. Create a site with custom CWV thresholds
+    const createRes = await app.request(
+      '/api/sites',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Vitals Performance Target',
+          url: 'https://vitals.example.com',
+          perfThreshold: 85,
+          lcpThresholdMs: 2000,
+          clsThreshold: 0.08,
+          inpThresholdMs: 150,
+        }),
+      },
+      { DB: d1, INGEST_SECRET: 'test-secret' }
+    );
+
+    expect(createRes.status).toBe(201);
+    const createBody = await createRes.json() as { site: { id: string; lcpThresholdMs: number; clsThreshold: number; inpThresholdMs: number } };
+    const siteId = createBody.site.id;
+    expect(createBody.site.lcpThresholdMs).toBe(2000);
+    expect(createBody.site.clsThreshold).toBe(0.08);
+    expect(createBody.site.inpThresholdMs).toBe(150);
+
+    // 2. Fetch site from DB and verify columns
+    const dbSite = await d1.prepare('SELECT lcp_threshold_ms, cls_threshold, inp_threshold_ms FROM sites WHERE id = ?').bind(siteId).first<{
+      lcp_threshold_ms: number;
+      cls_threshold: number;
+      inp_threshold_ms: number;
+    }>();
+    expect(dbSite?.lcp_threshold_ms).toBe(2000);
+    expect(dbSite?.cls_threshold).toBe(0.08);
+    expect(dbSite?.inp_threshold_ms).toBe(150);
+
+    // 3. Update thresholds via PUT
+    const updateRes = await app.request(
+      `/api/sites/${siteId}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lcpThresholdMs: 1800,
+          clsThreshold: 0.05,
+          inpThresholdMs: 100,
+        }),
+      },
+      { DB: d1, INGEST_SECRET: 'test-secret' }
+    );
+    expect(updateRes.status).toBe(200);
+
+    const updatedDbSite = await d1.prepare('SELECT lcp_threshold_ms, cls_threshold, inp_threshold_ms FROM sites WHERE id = ?').bind(siteId).first<{
+      lcp_threshold_ms: number;
+      cls_threshold: number;
+      inp_threshold_ms: number;
+    }>();
+    expect(updatedDbSite?.lcp_threshold_ms).toBe(1800);
+    expect(updatedDbSite?.cls_threshold).toBe(0.05);
+    expect(updatedDbSite?.inp_threshold_ms).toBe(100);
   });
 });

@@ -60,7 +60,7 @@ webhookRouter.post('/audit-result', async (c) => {
     .get();
 
   // 3. Evaluate state change and alerts
-  const evalResult = evaluateAuditState(site, payload.scores, payload.strategy, previousRun);
+  const evalResult = evaluateAuditState(site, payload.scores, payload.strategy, payload.metrics, previousRun);
 
   // 4. Save new audit run
   const runId = `run_${crypto.randomUUID().slice(0, 8)}`;

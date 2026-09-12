@@ -221,7 +221,7 @@ export const SiteCard: React.FC<SiteCardProps> = ({
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 600,
-                color: (currentRun.lcpMs ?? 0) <= 2500 ? '#10b981' : '#f59e0b',
+                color: (currentRun.lcpMs ?? 0) <= (site.lcpThresholdMs ?? 2500) ? '#10b981' : '#f87171',
               }}
             >
               {currentRun.lcpMs ? `${(currentRun.lcpMs / 1000).toFixed(2)}s` : '—'}
@@ -234,7 +234,7 @@ export const SiteCard: React.FC<SiteCardProps> = ({
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 600,
-                color: (currentRun.cls ?? 0) <= 0.1 ? '#10b981' : '#f59e0b',
+                color: (currentRun.cls ?? 0) <= (site.clsThreshold ?? 0.1) ? '#10b981' : '#f87171',
               }}
             >
               {currentRun.cls !== null && currentRun.cls !== undefined ? currentRun.cls.toFixed(3) : '0.000'}
@@ -257,9 +257,26 @@ export const SiteCard: React.FC<SiteCardProps> = ({
       )}
 
       {/* Threshold breach warning banner */}
-      {currentRun &&
-        (currentRun.performanceScore < site.perfThreshold ||
-          currentRun.accessibilityScore < site.a11yThreshold) && (
+      {(() => {
+        if (!currentRun) return null;
+        const breaches: string[] = [];
+        if (currentRun.performanceScore < site.perfThreshold) breaches.push(`Perf ${currentRun.performanceScore}`);
+        if (currentRun.accessibilityScore < site.a11yThreshold) breaches.push(`A11y ${currentRun.accessibilityScore}`);
+        if (currentRun.bestPracticesScore < site.bestPracticesThreshold) breaches.push(`Practices ${currentRun.bestPracticesScore}`);
+        if (currentRun.seoScore < site.seoThreshold) breaches.push(`SEO ${currentRun.seoScore}`);
+        if (currentRun.lcpMs != null && currentRun.lcpMs > (site.lcpThresholdMs ?? 2500)) {
+          breaches.push(`LCP ${(currentRun.lcpMs / 1000).toFixed(2)}s`);
+        }
+        if (currentRun.cls != null && currentRun.cls > (site.clsThreshold ?? 0.1)) {
+          breaches.push(`CLS ${currentRun.cls.toFixed(3)}`);
+        }
+        if (currentRun.inpMs != null && currentRun.inpMs > (site.inpThresholdMs ?? 200)) {
+          breaches.push(`INP ${currentRun.inpMs}ms`);
+        }
+
+        if (breaches.length === 0) return null;
+
+        return (
           <div
             style={{
               display: 'flex',
@@ -273,10 +290,11 @@ export const SiteCard: React.FC<SiteCardProps> = ({
               color: '#f87171',
             }}
           >
-            <AlertTriangle size={15} />
-            <span>Scores breach alert threshold</span>
+            <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+            <span>Below threshold ({breaches.join(', ')})</span>
           </div>
-        )}
+        );
+      })()}
 
       {/* Audit failure banner */}
       {site.lastRunStatus === 'failed' && (

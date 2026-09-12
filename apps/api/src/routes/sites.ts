@@ -82,6 +82,21 @@ sitesRouter.post('/', async (c) => {
   const hourUtc = body.auditHourUtc ?? 0;
   const nextAuditAt = calculateNextAuditAt(intervalDays, hourUtc, new Date());
 
+  const lcpThresholdMs = body.lcpThresholdMs ?? DEFAULT_THRESHOLDS.lcpMs;
+  if (typeof lcpThresholdMs !== 'number' || lcpThresholdMs < 100 || lcpThresholdMs > 60000) {
+    return c.json({ error: 'lcpThresholdMs must be a number between 100 and 60000 (ms)' }, 400);
+  }
+
+  const clsThreshold = body.clsThreshold ?? DEFAULT_THRESHOLDS.cls;
+  if (typeof clsThreshold !== 'number' || clsThreshold < 0 || clsThreshold > 10) {
+    return c.json({ error: 'clsThreshold must be a number between 0 and 10' }, 400);
+  }
+
+  const inpThresholdMs = body.inpThresholdMs ?? DEFAULT_THRESHOLDS.inpMs;
+  if (typeof inpThresholdMs !== 'number' || inpThresholdMs < 10 || inpThresholdMs > 10000) {
+    return c.json({ error: 'inpThresholdMs must be a number between 10 and 10000 (ms)' }, 400);
+  }
+
   const newSite = {
     id: siteId,
     name: body.name.trim(),
@@ -90,6 +105,9 @@ sitesRouter.post('/', async (c) => {
     a11yThreshold: body.a11yThreshold ?? DEFAULT_THRESHOLDS.accessibility,
     bestPracticesThreshold: body.bestPracticesThreshold ?? DEFAULT_THRESHOLDS.bestPractices,
     seoThreshold: body.seoThreshold ?? DEFAULT_THRESHOLDS.seo,
+    lcpThresholdMs,
+    clsThreshold,
+    inpThresholdMs,
     status: 'unknown' as const,
     auditIntervalDays: intervalDays,
     auditHourUtc: hourUtc,
@@ -146,10 +164,10 @@ sitesRouter.post('/', async (c) => {
     githubToken: c.env.GITHUB_TOKEN,
   });
 
-  if (c.executionCtx?.waitUntil) {
+  try {
     c.executionCtx.waitUntil(triggerPromise);
-  } else {
-    // If running in local node environment without executionCtx
+  } catch {
+    // If running in local node or test environment without executionCtx
     triggerPromise.catch((err) => console.error('Baseline audit trigger error:', err));
   }
 
@@ -180,6 +198,24 @@ sitesRouter.put('/:id', async (c) => {
   if (body.a11yThreshold !== undefined) updates.a11yThreshold = body.a11yThreshold;
   if (body.bestPracticesThreshold !== undefined) updates.bestPracticesThreshold = body.bestPracticesThreshold;
   if (body.seoThreshold !== undefined) updates.seoThreshold = body.seoThreshold;
+  if (body.lcpThresholdMs !== undefined) {
+    if (typeof body.lcpThresholdMs !== 'number' || body.lcpThresholdMs < 100 || body.lcpThresholdMs > 60000) {
+      return c.json({ error: 'lcpThresholdMs must be a number between 100 and 60000 (ms)' }, 400);
+    }
+    updates.lcpThresholdMs = body.lcpThresholdMs;
+  }
+  if (body.clsThreshold !== undefined) {
+    if (typeof body.clsThreshold !== 'number' || body.clsThreshold < 0 || body.clsThreshold > 10) {
+      return c.json({ error: 'clsThreshold must be a number between 0 and 10' }, 400);
+    }
+    updates.clsThreshold = body.clsThreshold;
+  }
+  if (body.inpThresholdMs !== undefined) {
+    if (typeof body.inpThresholdMs !== 'number' || body.inpThresholdMs < 10 || body.inpThresholdMs > 10000) {
+      return c.json({ error: 'inpThresholdMs must be a number between 10 and 10000 (ms)' }, 400);
+    }
+    updates.inpThresholdMs = body.inpThresholdMs;
+  }
 
   const intervalChanged = body.auditIntervalDays !== undefined && body.auditIntervalDays !== existingSite.auditIntervalDays;
   const hourChanged = body.auditHourUtc !== undefined && body.auditHourUtc !== existingSite.auditHourUtc;

@@ -12,7 +12,7 @@ import {
   formatScheduleSummary,
   formatNextRunCountdown,
 } from '../lib/schedule.js';
-import { X, ExternalLink, Smartphone, Monitor, Plus, Calendar, Clock, Check } from 'lucide-react';
+import { X, ExternalLink, Smartphone, Monitor, Plus, Calendar, Clock, Check, Sliders } from 'lucide-react';
 
 interface SiteDetailModalProps {
   site: Site | null;
@@ -30,6 +30,12 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
   const [localHour, setLocalHour] = useState<number>(() => utcHourToLocal(site?.auditHourUtc ?? 0));
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleSavedMsg, setScheduleSavedMsg] = useState(false);
+  const [perfThresholdVal, setPerfThresholdVal] = useState<number>(site?.perfThreshold ?? 90);
+  const [lcpThresholdSec, setLcpThresholdSec] = useState<number>((site?.lcpThresholdMs ?? 2500) / 1000);
+  const [clsThresholdVal, setClsThresholdVal] = useState<number>(site?.clsThreshold ?? 0.1);
+  const [inpThresholdMsVal, setInpThresholdMsVal] = useState<number>(site?.inpThresholdMs ?? 200);
+  const [savingThresholds, setSavingThresholds] = useState(false);
+  const [thresholdsSavedMsg, setThresholdsSavedMsg] = useState(false);
   const [newChannelType, setNewChannelType] = useState<'slack' | 'discord'>('slack');
   const [newWebhookUrl, setNewWebhookUrl] = useState('');
 
@@ -47,6 +53,10 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
           setCurrentSite(data.site);
           setIntervalDays(data.site.auditIntervalDays ?? 7);
           setLocalHour(utcHourToLocal(data.site.auditHourUtc ?? 0));
+          setPerfThresholdVal(data.site.perfThreshold ?? 90);
+          setLcpThresholdSec((data.site.lcpThresholdMs ?? 2500) / 1000);
+          setClsThresholdVal(data.site.clsThreshold ?? 0.1);
+          setInpThresholdMsVal(data.site.inpThresholdMs ?? 200);
         }
       }
     } catch (err) {
@@ -61,6 +71,10 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
       setCurrentSite(site);
       setIntervalDays(site.auditIntervalDays ?? 7);
       setLocalHour(utcHourToLocal(site.auditHourUtc ?? 0));
+      setPerfThresholdVal(site.perfThreshold ?? 90);
+      setLcpThresholdSec((site.lcpThresholdMs ?? 2500) / 1000);
+      setClsThresholdVal(site.clsThreshold ?? 0.1);
+      setInpThresholdMsVal(site.inpThresholdMs ?? 200);
       fetchDetails();
     }
   }, [isOpen, site, fetchDetails]);
@@ -99,6 +113,40 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
       console.error('Failed to update schedule:', err);
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+  const handleSaveThresholds = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displaySite) return;
+    setSavingThresholds(true);
+    setThresholdsSavedMsg(false);
+
+    try {
+      const res = await fetch(apiUrl(`/api/sites/${displaySite.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          perfThreshold: perfThresholdVal,
+          lcpThresholdMs: Math.round(lcpThresholdSec * 1000),
+          clsThreshold: clsThresholdVal,
+          inpThresholdMs: inpThresholdMsVal,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.site) {
+          setCurrentSite(data.site);
+        }
+        setThresholdsSavedMsg(true);
+        setTimeout(() => setThresholdsSavedMsg(false), 3000);
+        onSiteUpdated?.();
+      }
+    } catch (err) {
+      console.error('Failed to update thresholds:', err);
+    } finally {
+      setSavingThresholds(false);
     }
   };
 
@@ -228,9 +276,14 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
 
         {/* Core Web Vitals */}
         <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px' }}>
-            Core Web Vitals Metrics
-          </h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Core Web Vitals Metrics
+            </h4>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Target SLAs configured for this site
+            </span>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
             <div
               style={{
@@ -240,8 +293,25 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Largest Contentful Paint (LCP)</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Largest Contentful Paint (LCP)</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Target: ≤{(displaySite.lcpThresholdMs / 1000).toFixed(1)}s
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  marginTop: '4px',
+                  color:
+                    latestRun?.lcpMs != null
+                      ? latestRun.lcpMs <= displaySite.lcpThresholdMs
+                        ? '#10b981'
+                        : '#f87171'
+                      : 'var(--text-primary)',
+                }}
+              >
                 {latestRun?.lcpMs ? `${(latestRun.lcpMs / 1000).toFixed(2)}s` : '—'}
               </div>
             </div>
@@ -253,8 +323,25 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cumulative Layout Shift (CLS)</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cumulative Layout Shift (CLS)</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Target: ≤{displaySite.clsThreshold.toFixed(2)}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  marginTop: '4px',
+                  color:
+                    latestRun?.cls !== undefined && latestRun?.cls !== null
+                      ? latestRun.cls <= displaySite.clsThreshold
+                        ? '#10b981'
+                        : '#f87171'
+                      : 'var(--text-primary)',
+                }}
+              >
                 {latestRun?.cls !== undefined && latestRun?.cls !== null ? latestRun.cls.toFixed(3) : '—'}
               </div>
             </div>
@@ -266,8 +353,25 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Interaction to Next Paint (INP)</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Interaction to Next Paint (INP)</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Target: ≤{displaySite.inpThresholdMs}ms
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  marginTop: '4px',
+                  color:
+                    latestRun?.inpMs != null
+                      ? latestRun.inpMs <= displaySite.inpThresholdMs
+                        ? '#10b981'
+                        : '#f87171'
+                      : 'var(--text-primary)',
+                }}
+              >
                 {latestRun?.inpMs ? `${latestRun.inpMs}ms` : '—'}
               </div>
             </div>
@@ -495,6 +599,109 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
                 onClick={handleSaveSchedule}
               >
                 {savingSchedule ? 'Saving...' : 'Update Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Alert Thresholds & SLA Tuning */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sliders size={15} color="var(--accent-cyan)" />
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                Alert Thresholds & SLA Tuning
+              </h4>
+            </div>
+            {thresholdsSavedMsg && (
+              <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Check size={12} /> Thresholds updated successfully
+              </span>
+            )}
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px',
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+              <div>
+                <label className="form-label">Min Performance Score ({perfThresholdVal})</label>
+                <input
+                  type="range"
+                  min="50"
+                  max="100"
+                  value={perfThresholdVal}
+                  onChange={(e) => setPerfThresholdVal(parseInt(e.target.value, 10))}
+                  style={{ width: '100%', accentColor: 'var(--accent-mantis)' }}
+                />
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Target SLA: ≥ {perfThresholdVal}
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Max LCP ({lcpThresholdSec.toFixed(1)}s)</label>
+                <input
+                  type="range"
+                  min="1.0"
+                  max="6.0"
+                  step="0.1"
+                  value={lcpThresholdSec}
+                  onChange={(e) => setLcpThresholdSec(parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                />
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Alert if &gt; {lcpThresholdSec.toFixed(1)}s (Good: ≤ 2.5s)
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Max CLS ({clsThresholdVal.toFixed(2)})</label>
+                <input
+                  type="range"
+                  min="0.02"
+                  max="0.50"
+                  step="0.01"
+                  value={clsThresholdVal}
+                  onChange={(e) => setClsThresholdVal(parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                />
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Alert if &gt; {clsThresholdVal.toFixed(2)} (Good: ≤ 0.10)
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Max INP ({inpThresholdMsVal}ms)</label>
+                <input
+                  type="range"
+                  min="50"
+                  max="600"
+                  step="25"
+                  value={inpThresholdMsVal}
+                  onChange={(e) => setInpThresholdMsVal(parseInt(e.target.value, 10))}
+                  style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                />
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Alert if &gt; {inpThresholdMsVal}ms (Good: ≤ 200ms)
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '0.8125rem' }}
+                disabled={savingThresholds}
+                onClick={handleSaveThresholds}
+              >
+                {savingThresholds ? 'Saving...' : 'Update Thresholds'}
               </button>
             </div>
           </div>

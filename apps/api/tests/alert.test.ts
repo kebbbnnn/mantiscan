@@ -10,7 +10,12 @@ const mockSite: SiteRow = {
   a11yThreshold: 90,
   bestPracticesThreshold: 85,
   seoThreshold: 90,
+  lcpThresholdMs: 2500,
+  clsThreshold: 0.1,
+  inpThresholdMs: 200,
   status: 'healthy',
+  auditIntervalDays: 7,
+  auditHourUtc: 0,
   nextAuditAt: 1700000000,
   lastAuditedAt: null,
   lastRunStatus: null,
@@ -18,21 +23,64 @@ const mockSite: SiteRow = {
 };
 
 describe('Alert State Evaluation Engine', () => {
-  it('should maintain healthy status and return none when scores meet thresholds', () => {
+  it('should maintain healthy status and return none when scores and vitals meet thresholds', () => {
     const scores = { performance: 95, accessibility: 92, bestPractices: 90, seo: 95 };
-    const res = evaluateAuditState(mockSite, scores, 'mobile', null);
+    const metrics = { lcpMs: 1800, cls: 0.04, inpMs: 120 };
+    const res = evaluateAuditState(mockSite, scores, 'mobile', metrics, null);
 
     expect(res.action).toBe('none');
     expect(res.newStatus).toBe('healthy');
   });
 
-  it('should trigger degradation alert when a healthy site drops below threshold', () => {
+  it('should trigger degradation alert when category scores drop below threshold', () => {
     const scores = { performance: 75, accessibility: 92, bestPractices: 90, seo: 95 };
-    const res = evaluateAuditState(mockSite, scores, 'mobile', null);
+    const metrics = { lcpMs: 1800, cls: 0.04 };
+    const res = evaluateAuditState(mockSite, scores, 'mobile', metrics, null);
 
     expect(res.action).toBe('degraded');
     expect(res.newStatus).toBe('degraded');
-    expect(res.title).toContain('fell below score thresholds');
+    expect(res.title).toContain('fell below thresholds');
+    expect(res.summary).toContain('Perf 75 < 90');
+  });
+
+  it('should trigger degradation alert when LCP breaches threshold despite 100 category scores', () => {
+    const perfectScores = { performance: 100, accessibility: 100, bestPractices: 100, seo: 100 };
+    const failingLcp = { lcpMs: 3400, cls: 0.02, inpMs: 90 };
+    const res = evaluateAuditState(mockSite, perfectScores, 'mobile', failingLcp, null);
+
+    expect(res.action).toBe('degraded');
+    expect(res.newStatus).toBe('degraded');
+    expect(res.title).toContain('fell below thresholds');
+    expect(res.summary).toContain('LCP 3.40s > 2.50s');
+  });
+
+  it('should trigger degradation alert when CLS breaches threshold', () => {
+    const scores = { performance: 95, accessibility: 95, bestPractices: 95, seo: 95 };
+    const failingCls = { lcpMs: 1900, cls: 0.25, inpMs: 80 };
+    const res = evaluateAuditState(mockSite, scores, 'desktop', failingCls, null);
+
+    expect(res.action).toBe('degraded');
+    expect(res.newStatus).toBe('degraded');
+    expect(res.summary).toContain('CLS 0.250 > 0.100');
+  });
+
+  it('should trigger degradation alert when INP breaches threshold', () => {
+    const scores = { performance: 95, accessibility: 95, bestPractices: 95, seo: 95 };
+    const failingInp = { lcpMs: 1900, cls: 0.02, inpMs: 380 };
+    const res = evaluateAuditState(mockSite, scores, 'mobile', failingInp, null);
+
+    expect(res.action).toBe('degraded');
+    expect(res.newStatus).toBe('degraded');
+    expect(res.summary).toContain('INP 380ms > 200ms');
+  });
+
+  it('should gracefully ignore null or undefined vitals (e.g. INP in synthetic CI)', () => {
+    const scores = { performance: 95, accessibility: 92, bestPractices: 90, seo: 95 };
+    const partialMetrics = { lcpMs: 2100, cls: 0.05, inpMs: null };
+    const res = evaluateAuditState(mockSite, scores, 'mobile', partialMetrics, null);
+
+    expect(res.action).toBe('none');
+    expect(res.newStatus).toBe('healthy');
   });
 
   it('should suppress notifications on consecutive failures to prevent alert fatigue', () => {
@@ -54,7 +102,7 @@ describe('Alert State Evaluation Engine', () => {
     };
 
     const currentScores = { performance: 74, accessibility: 92, bestPractices: 90, seo: 95 };
-    const res = evaluateAuditState(degradedSite, currentScores, 'mobile', prevRun);
+    const res = evaluateAuditState(degradedSite, currentScores, 'mobile', null, prevRun);
 
     expect(res.action).toBe('none');
     expect(res.newStatus).toBe('degraded');
@@ -79,16 +127,16 @@ describe('Alert State Evaluation Engine', () => {
 
     // Performance dropped by 13 points (from 98 to 85, which is below 90 threshold as well)
     const currentScores = { performance: 85, accessibility: 98, bestPractices: 95, seo: 95 };
-    const res = evaluateAuditState(mockSite, currentScores, 'mobile', prevRun);
+    const res = evaluateAuditState(mockSite, currentScores, 'mobile', null, prevRun);
 
-    // If site was healthy, transition to degraded takes priority or triggers regression
     expect(res.action).toBe('degraded');
   });
 
-  it('should trigger recovery alert when a degraded site improves above thresholds', () => {
+  it('should trigger recovery alert when a degraded site improves above all thresholds', () => {
     const degradedSite: SiteRow = { ...mockSite, status: 'degraded' };
     const scores = { performance: 94, accessibility: 92, bestPractices: 90, seo: 95 };
-    const res = evaluateAuditState(degradedSite, scores, 'mobile', null);
+    const metrics = { lcpMs: 2200, cls: 0.04, inpMs: 110 };
+    const res = evaluateAuditState(degradedSite, scores, 'mobile', metrics, null);
 
     expect(res.action).toBe('recovered');
     expect(res.newStatus).toBe('healthy');
@@ -97,27 +145,31 @@ describe('Alert State Evaluation Engine', () => {
 });
 
 describe('Webhook Payload Formatters', () => {
-  it('formats Slack Block Kit correctly', () => {
+  it('formats Slack Block Kit correctly with CWV targets and status icons', () => {
     const scores = { performance: 65, accessibility: 90, bestPractices: 85, seo: 90 };
-    const metrics = { lcpMs: 3200, cls: 0.12 };
+    const metrics = { lcpMs: 3200, cls: 0.04, inpMs: null };
     const evalResult = {
       action: 'degraded' as const,
       newStatus: 'degraded' as const,
       title: 'Alert',
-      summary: 'Performance failed',
+      summary: 'LCP failed',
     };
 
     const payload = buildSlackPayload(mockSite, scores, metrics, 'mobile', evalResult, 'https://report.html');
     expect(payload.attachments).toHaveLength(1);
     expect(payload.attachments[0].color).toBe('#E74C3C');
-    expect(JSON.stringify(payload)).toContain('Acme Test Corp');
-    expect(JSON.stringify(payload)).toContain('3.20s');
-    expect(JSON.stringify(payload)).toContain('https://report.html');
+    const jsonStr = JSON.stringify(payload);
+    expect(jsonStr).toContain('Acme Test Corp');
+    expect(jsonStr).toContain('3.20s');
+    expect(jsonStr).toContain('target: ≤2.50s');
+    expect(jsonStr).toContain('🔴'); // LCP breached
+    expect(jsonStr).toContain('🟢'); // CLS passing
+    expect(jsonStr).toContain('https://report.html');
   });
 
-  it('formats Discord Rich Embed correctly', () => {
+  it('formats Discord Rich Embed correctly with CWV target comparisons', () => {
     const scores = { performance: 95, accessibility: 95, bestPractices: 95, seo: 95 };
-    const metrics = { lcpMs: 1100, cls: 0.01 };
+    const metrics = { lcpMs: 1100, cls: 0.01, inpMs: 80 };
     const evalResult = {
       action: 'recovered' as const,
       newStatus: 'healthy' as const,
@@ -128,6 +180,10 @@ describe('Webhook Payload Formatters', () => {
     const payload = buildDiscordPayload(mockSite, scores, metrics, 'desktop', evalResult);
     expect(payload.embeds).toHaveLength(1);
     expect(payload.embeds[0].color).toBe(0x2ecc71);
-    expect(payload.embeds[0].fields).toBeDefined();
+    const cwvField = payload.embeds[0].fields.find((f) => f.name === 'Core Web Vitals');
+    expect(cwvField).toBeDefined();
+    expect(cwvField?.value).toContain('1.10s (target ≤2.50s)');
+    expect(cwvField?.value).toContain('0.010 (target ≤0.100)');
+    expect(cwvField?.value).toContain('80ms (target ≤200ms)');
   });
 });
