@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Site, AuditRun, DeviceStrategy } from '@mantiscan/shared';
 import { AUDIT_INTERVAL_PRESETS } from '@mantiscan/shared';
 import { ScoreGauge } from './ScoreGauge.js';
+import { SiteTrendChart } from './SiteTrendChart.js';
 import { apiUrl } from '../lib/api.js';
 import {
   getUserTimeZone,
@@ -273,6 +274,9 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
             </div>
           </div>
         </div>
+
+        {/* Historical Multi-Scan Trend Graph */}
+        <SiteTrendChart runs={filteredRuns} site={displaySite} strategy={strategy} />
 
         {/* Audit Runs History Table */}
         <div style={{ marginBottom: '24px' }}>
