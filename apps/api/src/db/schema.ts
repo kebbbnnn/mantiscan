@@ -63,7 +63,7 @@ export const alertLogs = sqliteTable('alert_logs', {
   siteId: text('site_id')
     .notNull()
     .references(() => sites.id, { onDelete: 'cascade' }),
-  runId: text('run_id'),
+  runId: text('run_id').references(() => auditRuns.id, { onDelete: 'set null' }),
   alertType: text('alert_type').notNull(), // 'degraded' | 'recovered' | 'regression'
   payloadSummary: text('payload_summary'),
   dispatchedAt: integer('dispatched_at').notNull(),

@@ -18,7 +18,7 @@ type Bindings = {
   GITHUB_TOKEN?: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+export const app = new Hono<{ Bindings: Bindings }>();
 
 // Enable CORS for frontend
 app.use(
