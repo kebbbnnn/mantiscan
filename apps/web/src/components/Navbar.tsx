@@ -43,16 +43,22 @@ export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal, onNavigat
             cursor: onNavigate ? 'pointer' : 'default',
           }}
         >
-          <img
-            src="/logo.png"
-            alt="Mantiscan Logo"
-            style={{
-              width: '42px',
-              height: '42px',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 0 14px rgba(16, 185, 129, 0.4))',
-            }}
-          />
+          <picture>
+            <source srcSet="/logo.webp" type="image/webp" />
+            <img
+              src="/logo.png"
+              alt="Mantiscan Logo"
+              width="42"
+              height="42"
+              fetchPriority="high"
+              style={{
+                width: '42px',
+                height: '42px',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 14px rgba(16, 185, 129, 0.4))',
+              }}
+            />
+          </picture>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
@@ -80,18 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({ sites, onOpenAddModal, onNavigat
 
         {/* Center: Health Stats Pill */}
         {sites.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-full)',
-              padding: '6px 16px',
-              fontSize: '0.8125rem',
-            }}
-          >
+          <div className="navbar-health-pill">
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Activity size={14} color="var(--accent-mantis)" />
               <span style={{ color: 'var(--text-secondary)' }}>Sites:</span>

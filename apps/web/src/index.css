@@ -76,6 +76,24 @@ body {
   box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.6);
 }
 
+/* Navbar Health Stats Pill */
+.navbar-health-pill {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 768px) {
+  .navbar-health-pill {
+    display: none !important;
+  }
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

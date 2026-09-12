@@ -5,11 +5,12 @@ import { useRouter } from './lib/router.js';
 import { Navbar } from './components/Navbar.js';
 import { SiteCard } from './components/SiteCard.js';
 import { SiteCardSkeleton } from './components/SiteCardSkeleton.js';
-import { AddSiteModal } from './components/AddSiteModal.js';
-import { SiteDetailModal } from './components/SiteDetailModal.js';
-import { PrivacyPage } from './pages/PrivacyPage.js';
-import { TermsPage } from './pages/TermsPage.js';
 import { Plus, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+
+const AddSiteModal = React.lazy(() => import('./components/AddSiteModal.js').then((m) => ({ default: m.AddSiteModal })));
+const SiteDetailModal = React.lazy(() => import('./components/SiteDetailModal.js').then((m) => ({ default: m.SiteDetailModal })));
+const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage.js').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = React.lazy(() => import('./pages/TermsPage.js').then((m) => ({ default: m.TermsPage })));
 
 export const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
@@ -128,11 +129,19 @@ export const App: React.FC = () => {
   const { currentPath, navigate } = useRouter();
 
   if (currentPath === '/privacy') {
-    return <PrivacyPage onNavigate={navigate} />;
+    return (
+      <React.Suspense fallback={null}>
+        <PrivacyPage onNavigate={navigate} />
+      </React.Suspense>
+    );
   }
 
   if (currentPath === '/terms') {
-    return <TermsPage onNavigate={navigate} />;
+    return (
+      <React.Suspense fallback={null}>
+        <TermsPage onNavigate={navigate} />
+      </React.Suspense>
+    );
   }
 
   return (
@@ -217,17 +226,22 @@ export const App: React.FC = () => {
               margin: '40px auto',
             }}
           >
-            <img
-              src="/logo.png"
-              alt="Mantiscan Mascot"
-              style={{
-                width: '76px',
-                height: '76px',
-                objectFit: 'contain',
-                margin: '0 auto 16px auto',
-                filter: 'drop-shadow(0 0 24px rgba(16, 185, 129, 0.35))',
-              }}
-            />
+            <picture>
+              <source srcSet="/logo.webp" type="image/webp" />
+              <img
+                src="/logo.png"
+                alt="Mantiscan Mascot"
+                width="76"
+                height="76"
+                style={{
+                  width: '76px',
+                  height: '76px',
+                  objectFit: 'contain',
+                  margin: '0 auto 16px auto',
+                  filter: 'drop-shadow(0 0 24px rgba(16, 185, 129, 0.35))',
+                }}
+              />
+            </picture>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>
               No Websites Monitored Yet
             </h2>
@@ -315,19 +329,25 @@ export const App: React.FC = () => {
       </footer>
 
       {/* Modals */}
-      <AddSiteModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSubmit={handleAddSite}
-        onNavigate={navigate}
-      />
+      <React.Suspense fallback={null}>
+        {isAddModalOpen && (
+          <AddSiteModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onSubmit={handleAddSite}
+            onNavigate={navigate}
+          />
+        )}
 
-      <SiteDetailModal
-        site={selectedDetailSite}
-        isOpen={!!selectedDetailSite}
-        onClose={() => setSelectedDetailSite(null)}
-        onSiteUpdated={fetchSites}
-      />
+        {selectedDetailSite && (
+          <SiteDetailModal
+            site={selectedDetailSite}
+            isOpen={!!selectedDetailSite}
+            onClose={() => setSelectedDetailSite(null)}
+            onSiteUpdated={fetchSites}
+          />
+        )}
+      </React.Suspense>
     </div>
   );
 };

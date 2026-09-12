@@ -80,16 +80,21 @@ export const LegalLayout: React.FC<LegalLayoutProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <img
-                src="/logo.png"
-                alt="Mantiscan Logo"
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 0 10px rgba(16, 185, 129, 0.4))',
-                }}
-              />
+              <picture>
+                <source srcSet="/logo.webp" type="image/webp" />
+                <img
+                  src="/logo.png"
+                  alt="Mantiscan Logo"
+                  width="28"
+                  height="28"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 0 10px rgba(16, 185, 129, 0.4))',
+                  }}
+                />
+              </picture>
               <span
                 style={{
                   fontSize: '1rem',

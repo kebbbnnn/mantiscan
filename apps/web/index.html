@@ -6,12 +6,122 @@
     <title>Mantiscan — Automated Lighthouse CI Audit & Alerting</title>
     <meta name="description" content="Automated Lighthouse audit alerting for client websites. Weekly PageSpeed and Accessibility scans with team channel alerts." />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Resource Preloads -->
+    <link rel="preload" as="image" href="/logo.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Non-blocking Google Fonts -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" />
+    </noscript>
+
+    <!-- Critical CSS for instant FCP & background stability -->
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --border-subtle: rgba(255, 255, 255, 0.08);
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --accent-mantis: #10b981;
+        --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background-color: #0b0f19;
+        color: #f8fafc;
+        font-family: var(--font-sans);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column;">
+        <header style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(11, 15, 25, 0.8); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 40; padding: 16px 24px;">
+          <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <picture>
+                <source srcset="/logo.webp" type="image/webp" />
+                <img src="/logo.png" alt="Mantiscan Logo" width="42" height="42" fetchpriority="high" style="width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.4));" />
+              </picture>
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; color: #ffffff;">MANTISCAN</span>
+                  <span style="font-size: 0.6875rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3);">CI / CD</span>
+                </div>
+                <p style="font-size: 0.75rem; color: #64748b; margin: 0;">Automated Lighthouse Auditing &amp; Alerting</p>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button type="button" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: none; border-radius: 14px; padding: 10px 18px; font-weight: 600; font-size: 0.875rem; cursor: pointer;">
+                + Add Website
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main style="max-width: 1200px; margin: 0 auto; width: 100%; padding: 36px 24px; box-sizing: border-box; flex: 1;">
+          <div style="margin-bottom: 36px;">
+            <h1 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc; margin-bottom: 8px;">
+              Performance &amp; Accessibility Monitor
+            </h1>
+            <p style="color: #94a3b8; font-size: 0.9375rem; max-width: 640px; margin: 0; line-height: 1.5;">
+              Automated multi-run Lighthouse CI audits across Mobile &amp; Desktop viewports. Alerts are dispatched to team channels when scores drop below thresholds.
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 24px;" aria-busy="true" aria-label="Loading monitored websites">
+            <div class="glass-card" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; background: rgba(18, 24, 38, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px;" aria-hidden="true">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                <div style="min-width: 0; flex: 1;">
+                  <div class="skeleton-shimmer" style="height: 22px; width: 58%; border-radius: 8px; margin-bottom: 8px;"></div>
+                  <div class="skeleton-shimmer" style="height: 13px; width: 38%; border-radius: 8px;"></div>
+                </div>
+                <div style="flex-shrink: 0;">
+                  <div class="skeleton-shimmer" style="height: 24px; width: 82px; border-radius: 9999px;"></div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <div class="skeleton-shimmer" style="height: 16px; width: 74px; border-radius: 8px;"></div>
+                  <div class="skeleton-shimmer" style="height: 20px; width: 138px; border-radius: 4px;"></div>
+                </div>
+                <div class="skeleton-shimmer" style="height: 28px; width: 144px; border-radius: 8px;"></div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 14px 8px; background: rgba(0, 0, 0, 0.25); border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08); width: 100%; box-sizing: border-box;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div class="skeleton-shimmer" style="width: 62px; height: 62px; border-radius: 50%;"></div><div class="skeleton-shimmer" style="width: 44px; height: 10px; border-radius: 4px;"></div></div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div class="skeleton-shimmer" style="width: 62px; height: 62px; border-radius: 50%;"></div><div class="skeleton-shimmer" style="width: 44px; height: 10px; border-radius: 4px;"></div></div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div class="skeleton-shimmer" style="width: 62px; height: 62px; border-radius: 50%;"></div><div class="skeleton-shimmer" style="width: 44px; height: 10px; border-radius: 4px;"></div></div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div class="skeleton-shimmer" style="width: 62px; height: 62px; border-radius: 50%;"></div><div class="skeleton-shimmer" style="width: 44px; height: 10px; border-radius: 4px;"></div></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                <div class="skeleton-shimmer" style="width: 68px; height: 14px; border-radius: 4px;"></div>
+                <div class="skeleton-shimmer" style="width: 68px; height: 14px; border-radius: 4px;"></div>
+                <div class="skeleton-shimmer" style="width: 82px; height: 14px; border-radius: 4px;"></div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+                <div class="skeleton-shimmer" style="width: 104px; height: 14px; border-radius: 4px;"></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="skeleton-shimmer" style="width: 60px; height: 30px; border-radius: 14px;"></div>
+                  <div class="skeleton-shimmer" style="width: 88px; height: 30px; border-radius: 14px;"></div>
+                  <div class="skeleton-shimmer" style="width: 32px; height: 30px; border-radius: 14px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
