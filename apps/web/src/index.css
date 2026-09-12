@@ -20,8 +20,8 @@
   --radius-lg: 20px;
   --radius-full: 9999px;
 
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
