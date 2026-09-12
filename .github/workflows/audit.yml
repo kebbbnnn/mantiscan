@@ -45,30 +45,30 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm ci || npm install
+      - name: Install Lighthouse CI CLI
+        run: npm install -g @lhci/cli@0.14.0 --no-audit --no-fund
 
-      - name: Ensure Google Chrome Stable
+      - name: Verify Google Chrome Stable
         run: |
-          if ! command -v google-chrome &> /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y wget gnupg
-            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-            sudo apt-get update
-            sudo apt-get install -y google-chrome-stable
-          fi
-          google-chrome --version
+          google-chrome --version || { echo "Google Chrome binary missing!"; exit 1; }
 
       - name: Run Lighthouse CI (Mobile - 3 Runs)
         continue-on-error: true
         run: |
-          npx @lhci/cli collect --url="${{ inputs.url }}" --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled" --settings.emulatedFormFactor=mobile --additive
+          lhci collect --url="${{ inputs.url }}" --numberOfRuns=3 \
+            --settings.onlyCategories=performance,accessibility,best-practices,seo \
+            --settings.maxWaitForLoad=30000 \
+            --settings.chromeFlags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled --disable-extensions --disable-background-networking" \
+            --settings.emulatedFormFactor=mobile --additive
 
       - name: Run Lighthouse CI (Desktop - 3 Runs)
         continue-on-error: true
         run: |
-          npx @lhci/cli collect --url="${{ inputs.url }}" --numberOfRuns=3 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled" --settings.preset=desktop --additive
+          lhci collect --url="${{ inputs.url }}" --numberOfRuns=3 \
+            --settings.onlyCategories=performance,accessibility,best-practices,seo \
+            --settings.maxWaitForLoad=30000 \
+            --settings.chromeFlags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled --disable-extensions --disable-background-networking" \
+            --settings.preset=desktop --additive
 
       - name: Upload Lighthouse Reports Artifact
         uses: actions/upload-artifact@v4
@@ -76,7 +76,7 @@ jobs:
         with:
           name: lighthouse-reports-${{ inputs.site_id }}-${{ github.run_id }}
           path: .lighthouseci/
-          retention-days: 30
+          retention-days: 14
 
       - name: Post Results to Mantiscan Cloudflare API
         if: always()

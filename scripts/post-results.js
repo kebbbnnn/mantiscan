@@ -107,6 +107,29 @@ async function postResults() {
     }
   }
 
+  const totalParsedRuns = runsByStrategy.mobile.length + runsByStrategy.desktop.length;
+  if (totalParsedRuns === 0) {
+    console.error('No valid Lighthouse runs could be parsed. Notifying API of failure...');
+    try {
+      const res = await fetch(CALLBACK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ingest-Secret': INGEST_SECRET,
+        },
+        body: JSON.stringify({
+          siteId: SITE_ID,
+          status: 'failed',
+          error: 'All Lighthouse reports failed parsing or contained invalid audit data',
+        }),
+      });
+      console.log(`API failure notification status: ${res.status}`);
+    } catch (e) {
+      console.error('Failed to notify API of failure:', e.message);
+    }
+    process.exit(1);
+  }
+
   const reportUrl = GITHUB_REPO && RUN_ID
     ? `https://github.com/${GITHUB_REPO}/actions/runs/${RUN_ID}`
     : null;
