@@ -274,6 +274,71 @@ export const SiteDetailModal: React.FC<SiteDetailModalProps> = ({ site, isOpen, 
           <ScoreGauge score={latestRun?.seoScore} label="SEO" size={80} />
         </div>
 
+        {/* Interactive Lighthouse Report Action Banner */}
+        {latestRun?.reportUrl && (
+          <div
+            style={{
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              background: 'rgba(56, 189, 248, 0.07)',
+              border: '1px solid rgba(56, 189, 248, 0.22)',
+              borderRadius: 'var(--radius-md)',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.125rem' }}>⚡</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Interactive {strategy === 'desktop' ? 'Desktop' : 'Mobile'} Lighthouse Report
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      color: 'var(--accent-cyan)',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    14-day live diagnostic
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Inspect complete audits, filmstrip, treemap, and DOM opportunities
+                </div>
+              </div>
+            </div>
+            <a
+              href={latestRun.reportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: '#fff',
+                background: 'var(--accent-cyan)',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-sm)',
+                textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(56, 189, 248, 0.3)',
+                transition: 'transform 0.15s ease, opacity 0.15s ease',
+              }}
+            >
+              Open Full Report ↗
+            </a>
+          </div>
+        )}
+
         {/* Core Web Vitals */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>

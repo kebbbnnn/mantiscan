@@ -64,6 +64,8 @@ jobs:
             --settings.maxWaitForLoad=30000 \
             --settings.chromeFlags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled --disable-extensions --disable-background-networking" \
             --settings.emulatedFormFactor=mobile --additive
+          lhci upload --target=temporary-public-storage || true
+          rm -rf .lighthouseci-mobile && mv .lighthouseci .lighthouseci-mobile
 
       - name: Run Lighthouse CI (Desktop - 3 Runs)
         continue-on-error: true
@@ -73,13 +75,18 @@ jobs:
             --settings.maxWaitForLoad=30000 \
             --settings.chromeFlags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-blink-features=AutomationControlled --disable-extensions --disable-background-networking" \
             --settings.preset=desktop --additive
+          lhci upload --target=temporary-public-storage || true
+          rm -rf .lighthouseci-desktop && mv .lighthouseci .lighthouseci-desktop
 
       - name: Upload Lighthouse Reports Artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lighthouse-reports-${{ inputs.site_id }}-${{ github.run_id }}
-          path: .lighthouseci/
+          path: |
+            .lighthouseci-mobile/
+            .lighthouseci-desktop/
+            .lighthouseci/
           retention-days: 14
 
       - name: Post Results to Mantiscan Cloudflare API
@@ -88,6 +95,7 @@ jobs:
           node scripts/post-results.js
         env:
           SITE_ID: ${{ inputs.site_id }}
+          TARGET_URL: ${{ inputs.url }}
           CALLBACK_URL: ${{ inputs.callback_url }}
           INGEST_SECRET: ${{ inputs.ingest_secret }}
           RUN_ID: ${{ github.run_id }}

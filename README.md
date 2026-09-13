@@ -11,8 +11,9 @@ Mantiscan monitors client and production websites, running weekly automated Goog
 * **Web Dashboard (`apps/web`):** Modern React + Vite SPA on Cloudflare Pages featuring dark mode, glassmorphism, animated SVG radial score dials, and Core Web Vitals breakdowns.
 * **API Backend (`apps/api`):** Ultra-fast Hono TypeScript service on Cloudflare Workers bound to serverless SQLite (Cloudflare D1).
 * **Headless Browser Runner (`.github/workflows/audit.yml`):** Runs official Google Lighthouse CI (`@lhci/cli`) on GitHub Actions with multi-run median scores (3 runs per URL) to eliminate cloud CPU jitter.
+* **1-Click Interactive Reports:** Viewport-isolated median HTML reports hosted on Google Cloud Storage (`@lhci/cli upload --target=temporary-public-storage`) for zero credit cards, zero extra infrastructure, and instant 1-click diagnostics from Slack, Discord, and dashboard.
 * **Smart Alerting Engine:** State-transition notifications (`Healthy ➔ Degraded`, `Degraded ➔ Healthy`) plus regression delta drop detection ($\ge 10$ points). Suppresses repetitive failure spam.
-* **$0 Operational Cost:** Engineered entirely within high-capacity, permanent free tiers (Cloudflare Pages/Workers/D1, GitHub Actions, Slack/Discord webhooks).
+* **$0 Operational Cost:** Engineered entirely within high-capacity, permanent free tiers (Cloudflare Pages/Workers/D1, GitHub Actions, Slack/Discord webhooks, Google temporary public storage).
 
 ---
 
