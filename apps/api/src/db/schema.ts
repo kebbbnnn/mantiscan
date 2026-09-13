@@ -48,6 +48,7 @@ export const auditRuns = sqliteTable(
   },
   (table) => ({
     siteRunsIdx: index('idx_audit_runs_site_id').on(table.siteId, table.createdAt),
+    siteStrategyRunsIdx: index('idx_audit_runs_lookup').on(table.siteId, table.strategy, table.createdAt),
   })
 );
 

@@ -50,6 +50,14 @@ export interface Site {
   latestRuns?: AuditRun[];
 }
 
+export interface SiteStatusResponse {
+  id: string;
+  status: SiteHealthStatus;
+  lastRunStatus: 'success' | 'failed' | 'running' | null;
+  lastAuditedAt: number | null;
+  lastScanRequestedAt: number | null;
+}
+
 export interface AuditRun {
   id: string;
   siteId: string;

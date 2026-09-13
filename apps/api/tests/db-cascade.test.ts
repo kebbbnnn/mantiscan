@@ -33,6 +33,7 @@ describe('Database Cascade Deletion Integrity in D1', () => {
       resolve(__dirname, '../migrations/0002_add_audit_schedule.sql'),
       resolve(__dirname, '../migrations/0003_add_cwv_thresholds.sql'),
       resolve(__dirname, '../migrations/0004_add_scan_cooldown.sql'),
+      resolve(__dirname, '../migrations/0005_add_audit_runs_strategy_index.sql'),
     ];
 
     for (const file of migrationFiles) {

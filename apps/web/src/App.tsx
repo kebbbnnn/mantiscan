@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Site, CreateSiteInput } from '@mantiscan/shared';
+import { getAuditCooldownStatus } from '@mantiscan/shared';
+import type { Site, CreateSiteInput, SiteStatusResponse } from '@mantiscan/shared';
 import { apiUrl } from './lib/api.js';
 import { useRouter } from './lib/router.js';
 import { Navbar } from './components/Navbar.js';
@@ -30,7 +31,12 @@ export const App: React.FC = () => {
       const res = await fetch(apiUrl('/api/sites'));
       if (res.ok) {
         const data = await res.json();
-        setSites(data.sites || []);
+        const loadedSites: Site[] = data.sites || [];
+        setSites(loadedSites);
+        setSelectedDetailSite((curr) => {
+          if (!curr) return null;
+          return loadedSites.find((s) => s.id === curr.id) || null;
+        });
       }
     } catch (err) {
       console.error('Failed to load sites:', err);
@@ -43,17 +49,52 @@ export const App: React.FC = () => {
     fetchSites();
   }, [fetchSites]);
 
-  // Polling when a scan is in progress
+  // Targeted lightweight status polling when an audit is actively in progress
   useEffect(() => {
-    const hasRunningAudit = sites.some((s) => s.lastRunStatus === 'running');
-    if (!hasRunningAudit && !scanningSiteId) return;
+    const activelyRunningSites = sites.filter(
+      (s) => s.lastRunStatus === 'running' && getAuditCooldownStatus(s).reason === 'running'
+    );
 
-    const interval = setInterval(() => {
-      fetchSites();
-    }, 3000);
+    if (activelyRunningSites.length === 0) return;
 
-    return () => clearInterval(interval);
-  }, [sites, scanningSiteId, fetchSites]);
+    let isSubscribed = true;
+
+    const checkStatus = async () => {
+      for (const runningSite of activelyRunningSites) {
+        try {
+          const res = await fetch(apiUrl(`/api/sites/${runningSite.id}/status`));
+          if (!res.ok) {
+            if (res.status === 404) {
+              // Site was deleted, refresh site list
+              fetchSites();
+            }
+            continue;
+          }
+          const statusData: SiteStatusResponse = await res.json();
+          if (!isSubscribed) return;
+
+          // If the audit has finished or failed, refresh site list once to pull scores
+          if (statusData.lastRunStatus !== 'running') {
+            if (statusData.lastRunStatus === 'success') {
+              showToast(`Audit completed for ${runningSite.name}`, 'success');
+            } else if (statusData.lastRunStatus === 'failed') {
+              showToast(`Audit failed for ${runningSite.name}`, 'error');
+            }
+            fetchSites();
+            break;
+          }
+        } catch (err) {
+          console.warn('Status poll error for site', runningSite.id, err);
+        }
+      }
+    };
+
+    const interval = setInterval(checkStatus, 6000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [sites, fetchSites]);
 
   const handleScan = async (siteId: string) => {
     setScanningSiteId(siteId);
@@ -74,7 +115,6 @@ export const App: React.FC = () => {
               : s
           )
         );
-        fetchSites();
       } else {
         showToast(data.error || 'Failed to trigger audit', 'error');
         if (res.status === 429 && data.retryAfter) {

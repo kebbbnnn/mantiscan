@@ -5,7 +5,7 @@ import { sites, auditRuns, alertChannels } from '../db/schema.js';
 import { triggerAuditWorkflow } from '../services/github.js';
 import { calculateNextAuditAt } from '../services/schedule.js';
 import { DEFAULT_THRESHOLDS, getAuditCooldownStatus } from '@mantiscan/shared';
-import type { CreateSiteInput, UpdateSiteInput } from '@mantiscan/shared';
+import type { CreateSiteInput, UpdateSiteInput, SiteStatusResponse } from '@mantiscan/shared';
 
 type Bindings = {
   DB: D1Database;
@@ -18,45 +18,69 @@ type Bindings = {
 
 export const sitesRouter = new Hono<{ Bindings: Bindings }>();
 
-// GET /api/sites - List all sites with latest run and channels
+// GET /api/sites - List all sites with latest run and channels (batched queries)
 sitesRouter.get('/', async (c) => {
   const db = drizzle(c.env.DB);
   const allSites = await db.select().from(sites).all();
 
-  // For each site, fetch alert channels and latest runs for each strategy
-  const enrichedSites = await Promise.all(
-    allSites.map(async (site) => {
-      const [channels, latestMobile, latestDesktop] = await Promise.all([
-        db
-          .select()
-          .from(alertChannels)
-          .where(eq(alertChannels.siteId, site.id))
-          .all(),
-        db
-          .select()
-          .from(auditRuns)
-          .where(and(eq(auditRuns.siteId, site.id), eq(auditRuns.strategy, 'mobile')))
-          .orderBy(desc(auditRuns.createdAt))
-          .limit(1)
-          .get(),
-        db
-          .select()
-          .from(auditRuns)
-          .where(and(eq(auditRuns.siteId, site.id), eq(auditRuns.strategy, 'desktop')))
-          .orderBy(desc(auditRuns.createdAt))
-          .limit(1)
-          .get(),
-      ]);
+  if (allSites.length === 0) {
+    return c.json({ sites: [] });
+  }
 
-      const latestRuns = [latestMobile, latestDesktop].filter(Boolean);
+  // 1. Fetch all alert channels in one batch query
+  const allChannels = await db.select().from(alertChannels).all();
+  const channelsBySiteId = new Map<string, (typeof alertChannels.$inferSelect)[]>();
+  for (const ch of allChannels) {
+    const list = channelsBySiteId.get(ch.siteId) || [];
+    list.push(ch);
+    channelsBySiteId.set(ch.siteId, list);
+  }
 
-      return {
-        ...site,
-        channels,
-        latestRuns,
-      };
-    })
-  );
+  // 2. Fetch latest mobile & desktop runs in one batch query via window function
+  const latestRunsResult = await c.env.DB.prepare(`
+    SELECT
+      id,
+      site_id as siteId,
+      triggered_by as triggeredBy,
+      strategy,
+      performance_score as performanceScore,
+      accessibility_score as accessibilityScore,
+      best_practices_score as bestPracticesScore,
+      seo_score as seoScore,
+      lcp_ms as lcpMs,
+      cls,
+      inp_ms as inpMs,
+      report_url as reportUrl,
+      created_at as createdAt
+    FROM (
+      SELECT *,
+        ROW_NUMBER() OVER (
+          PARTITION BY site_id, strategy
+          ORDER BY created_at DESC
+        ) as rn
+      FROM audit_runs
+    )
+    WHERE rn = 1
+  `).all<typeof auditRuns.$inferSelect>();
+
+  const latestRunsBySiteId = new Map<string, (typeof auditRuns.$inferSelect)[]>();
+  for (const run of latestRunsResult.results || []) {
+    const list = latestRunsBySiteId.get(run.siteId) || [];
+    list.push(run);
+    latestRunsBySiteId.set(run.siteId, list);
+  }
+
+  // 3. Assemble enriched sites with constant query cost
+  const enrichedSites = allSites.map((site) => {
+    const runs = latestRunsBySiteId.get(site.id) || [];
+    // Ensure mobile comes before desktop if both exist
+    runs.sort((a, b) => (a.strategy === 'mobile' ? -1 : 1));
+    return {
+      ...site,
+      channels: channelsBySiteId.get(site.id) || [],
+      latestRuns: runs,
+    };
+  });
 
   return c.json({ sites: enrichedSites });
 });
@@ -241,6 +265,52 @@ sitesRouter.put('/:id', async (c) => {
 
   const updatedSite = await db.select().from(sites).where(eq(sites.id, siteId)).get();
   return c.json({ site: updatedSite });
+});
+
+// GET /api/sites/:id/status - Lightweight status check for polling
+sitesRouter.get('/:id/status', async (c) => {
+  const siteId = c.req.param('id');
+  const db = drizzle(c.env.DB);
+
+  const site = await db
+    .select({
+      id: sites.id,
+      status: sites.status,
+      lastRunStatus: sites.lastRunStatus,
+      lastAuditedAt: sites.lastAuditedAt,
+      lastScanRequestedAt: sites.lastScanRequestedAt,
+    })
+    .from(sites)
+    .where(eq(sites.id, siteId))
+    .get();
+
+  if (!site) {
+    return c.json({ error: 'Site not found' }, 404);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const cooldown = getAuditCooldownStatus(site, now);
+
+  // Self-healing: if stuck in 'running' beyond timeout, update D1 to 'failed'
+  let currentRunStatus = site.lastRunStatus;
+  if (site.lastRunStatus === 'running' && cooldown.reason !== 'running') {
+    await db
+      .update(sites)
+      .set({ lastRunStatus: 'failed' })
+      .where(eq(sites.id, siteId))
+      .run();
+    currentRunStatus = 'failed';
+  }
+
+  const response: SiteStatusResponse = {
+    id: site.id,
+    status: site.status,
+    lastRunStatus: currentRunStatus,
+    lastAuditedAt: site.lastAuditedAt,
+    lastScanRequestedAt: site.lastScanRequestedAt,
+  };
+
+  return c.json(response);
 });
 
 // GET /api/sites/:id - Get site details and full audit history
